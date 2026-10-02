@@ -327,6 +327,13 @@ export class Repo {
       .run({ ...row, created_at: this.now() });
   }
 
+  openPromiseUntil(invoiceId: string, today: string): string | undefined {
+    const r = this.db
+      .prepare("SELECT MAX(promise_date) AS d FROM promises WHERE invoice_id = ? AND status = 'open' AND promise_date >= ?")
+      .get(invoiceId, today) as { d: string | null };
+    return r.d ?? undefined;
+  }
+
   listPromises(): PromiseRow[] {
     return this.db.prepare("SELECT * FROM promises ORDER BY id DESC").all() as PromiseRow[];
   }

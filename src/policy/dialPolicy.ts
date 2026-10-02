@@ -13,6 +13,8 @@ export type BlockCode =
   | "DO_NOT_CALL"
   | "DISPUTED"
   | "NOTHING_OWED"
+  | "PROMISE_PENDING"
+  | "PLAN_ACTIVE"
   | "CALL_IN_PROGRESS"
   | "OUTSIDE_CALLING_HOURS"
   | "FREQUENCY_CAP"
@@ -30,6 +32,8 @@ export interface DialContext {
   dialedLast7d: number;
   lastRightPartyContactAt: string | undefined;
   callInProgress: boolean;
+  openPromiseUntil?: string;
+  planActive?: boolean;
 }
 
 const block = (code: BlockCode, reason: string): DialDecision => ({ allowed: false, code, reason });
@@ -41,6 +45,8 @@ export function evaluateDial(ctx: DialContext): DialDecision {
   if (ctx.customer.dnc) return block("DO_NOT_CALL", "Customer is on the do-not-call list.");
   if (ctx.customer.dispute_flag || ctx.invoice?.status === "disputed") return block("DISPUTED", "Account has an open dispute; collection calls are paused.");
   if (!isCollectable(ctx.invoice)) return block("NOTHING_OWED", "No collectable balance (paid, under review, or no invoice).");
+  if (ctx.openPromiseUntil) return block("PROMISE_PENDING", `Customer promised to pay by ${ctx.openPromiseUntil}; no calls until that date passes.`);
+  if (ctx.planActive) return block("PLAN_ACTIVE", "Customer is on an agreed payment plan.");
   if (ctx.callInProgress) return block("CALL_IN_PROGRESS", "Another call to the demo phone is still in progress.");
 
   const local = localParts(ctx.now, ctx.customer.timezone);

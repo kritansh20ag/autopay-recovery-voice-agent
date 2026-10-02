@@ -67,6 +67,11 @@ describe("evaluateDial", () => {
     expect(evaluateDial(ctx({ lastRightPartyContactAt: new Date(NOON_IST.getTime() - 8 * 86_400_000).toISOString() }))).toEqual({ allowed: true });
   });
 
+  it("does not chase a customer with an open promise or an agreed plan", () => {
+    expect(evaluateDial(ctx({ openPromiseUntil: "2026-10-10" }))).toMatchObject({ code: "PROMISE_PENDING" });
+    expect(evaluateDial(ctx({ planActive: true }))).toMatchObject({ code: "PLAN_ACTIVE" });
+  });
+
   it("refuses a second concurrent call to the demo phone", () => {
     expect(evaluateDial(ctx({ callInProgress: true }))).toMatchObject({ code: "CALL_IN_PROGRESS" });
   });

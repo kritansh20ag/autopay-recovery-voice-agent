@@ -65,15 +65,18 @@ export class Dialer {
     const { repo, config } = this.deps;
     const now = repo.nowDate();
     const active = repo.activeCall();
+    const invoice = repo.invoiceForCustomer(customer.id);
     return evaluateDial({
       customer,
-      invoice: repo.invoiceForCustomer(customer.id),
+      invoice,
       to: config.demoPhoneNumber,
       now,
       allowlist: config.allowedDialNumbers,
       window: config.callingWindow,
       dialedLast7d: repo.dialedAttemptsSince(customer.id, new Date(now.getTime() - 7 * DAY_MS).toISOString()),
       lastRightPartyContactAt: repo.lastRightPartyContactAt(customer.id),
+      openPromiseUntil: invoice ? repo.openPromiseUntil(invoice.id, localDate(now, customer.timezone)) : undefined,
+      planActive: invoice ? repo.plansForInvoice(invoice.id).length > 0 : false,
       callInProgress: this.placing || (!!active && now.getTime() - Date.parse(active.created_at) < this.timings.staleCallMs),
     });
   }

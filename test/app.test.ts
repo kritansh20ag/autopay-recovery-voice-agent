@@ -188,7 +188,10 @@ describe("end-to-end recovery", () => {
     await webhook(t, "call_ended", retellCall(callId, "cus_03", { disconnection_reason: "user_hangup" }));
     expect(t.repo.getCall(callId)!.disposition).toBe("promise_to_pay");
     const view = (await request(t.app).get("/api/state")).body.customers.find((c: any) => c.id === "cus_03");
-    expect(view).toMatchObject({ status: "promise_to_pay", eligibility: { allowed: false, code: "RECENT_CONVERSATION" } });
+    expect(view).toMatchObject({ status: "promise_to_pay", eligibility: { allowed: false, code: "PROMISE_PENDING" } });
+    t.clock.advance(7 * 86_400_000);
+    const later = (await request(t.app).get("/api/state")).body.customers.find((c: any) => c.id === "cus_03");
+    expect(later.eligibility).toEqual({ allowed: true });
   });
 
   it("hardship: fee waiver then a 3-part plan", async () => {

@@ -332,6 +332,18 @@ export class Repo {
       .run({ ...row, created_at: this.now() });
   }
 
+  plansForInvoice(invoiceId: string): PlanRow[] {
+    return this.db.prepare("SELECT * FROM payment_plans WHERE invoice_id = ? ORDER BY id").all(invoiceId) as PlanRow[];
+  }
+
+  updatePlanSchedule(id: number, scheduleJson: string): void {
+    this.db.prepare("UPDATE payment_plans SET schedule_json = ? WHERE id = ?").run(scheduleJson, id);
+  }
+
+  capOpenPromises(invoiceId: string, maxAmount: number): void {
+    this.db.prepare("UPDATE promises SET amount = MIN(amount, ?) WHERE invoice_id = ? AND status = 'open'").run(maxAmount, invoiceId);
+  }
+
   listPlans(): PlanRow[] {
     return this.db.prepare("SELECT * FROM payment_plans ORDER BY id DESC").all() as PlanRow[];
   }

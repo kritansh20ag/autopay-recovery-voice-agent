@@ -189,6 +189,29 @@ describe("end-to-end recovery", () => {
     expect(plan.schedule.map((s: any) => s.amount)).toEqual([833, 833, 833]);
   });
 
+  it("recalculates an existing plan when the late fee is waived afterwards", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_08");
+    await tool(t, callId, "cus_08", "verify_identity", verifyArgs(t, "cus_08"));
+    const plan = await tool(t, callId, "cus_08", "set_up_payment_plan", { installments: 3 });
+    expect(plan.schedule.reduce((s: number, i: any) => s + i.amount, 0)).toBe(2649);
+    const waived = await tool(t, callId, "cus_08", "waive_late_fee");
+    expect(waived.updated_plan_schedule.reduce((s: number, i: any) => s + i.amount, 0)).toBe(2499);
+    expect(JSON.parse(t.repo.listPlans()[0]!.schedule_json).reduce((s: number, i: any) => s + i.amount, 0)).toBe(2499);
+  });
+
+  it("marks the invoice paid when a waiver clears the remaining balance, and refuses waivers on paid invoices", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_08");
+    await tool(t, callId, "cus_08", "verify_identity", verifyArgs(t, "cus_08"));
+    await tool(t, callId, "cus_08", "send_payment_link", { purpose: "partial", amount: 2499 });
+    await request(t.app).post(`/pay/${t.repo.listLinks()[0]!.token}`).type("form").send({ method: "upi" });
+    expect(t.repo.invoiceForCustomer("cus_08")).toMatchObject({ status: "partially_paid", paid_amount: 2499 });
+    expect(await tool(t, callId, "cus_08", "waive_late_fee")).toMatchObject({ ok: true, new_balance: 0 });
+    expect(t.repo.invoiceForCustomer("cus_08")!.status).toBe("paid");
+    expect(await tool(t, callId, "cus_08", "waive_late_fee")).toMatchObject({ ok: false, error: "NOTHING_TO_COLLECT" });
+  });
+
   it("partial payment then promise for the rest", async () => {
     const t = makeApp();
     const callId = await placeCall(t, "cus_10");

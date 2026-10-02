@@ -8,19 +8,20 @@ export interface PaymentResult {
   fullyPaid: boolean;
 }
 
+export function settleInvoice(repo: Repo, invoiceId: string): InvoiceRow {
+  const invoice = repo.getInvoice(invoiceId)!;
+  if (!isCollectable(invoice) && (invoice.status === "failed" || invoice.status === "partially_paid")) {
+    repo.updateInvoice(invoiceId, { status: "paid", paid_at: repo.now() });
+    repo.db.prepare("UPDATE promises SET status = 'kept' WHERE invoice_id = ? AND status = 'open'").run(invoiceId);
+  }
+  return repo.getInvoice(invoiceId)!;
+}
+
 export function applyPayment(repo: Repo, invoice: InvoiceRow, amount: number): PaymentResult {
   const applied = Math.min(amount, balanceDue(invoice));
-  const paidAmount = invoice.paid_amount + applied;
-  const fullyPaid = paidAmount >= invoice.amount + (invoice.late_fee_waived ? 0 : invoice.late_fee);
-  repo.updateInvoice(invoice.id, {
-    paid_amount: paidAmount,
-    status: fullyPaid ? "paid" : "partially_paid",
-    paid_at: fullyPaid ? repo.now() : invoice.paid_at,
-  });
-  if (fullyPaid) {
-    repo.db.prepare("UPDATE promises SET status = 'kept' WHERE invoice_id = ? AND status = 'open'").run(invoice.id);
-  }
-  return { invoice: repo.getInvoice(invoice.id)!, applied, fullyPaid };
+  repo.updateInvoice(invoice.id, { paid_amount: invoice.paid_amount + applied, status: "partially_paid" });
+  const settled = settleInvoice(repo, invoice.id);
+  return { invoice: settled, applied, fullyPaid: settled.status === "paid" };
 }
 
 export type RetryResult =

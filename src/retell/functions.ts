@@ -3,7 +3,7 @@ import type { CallRow, CustomerRow, InvoiceRow, Repo } from "../db/db.js";
 import type { EventBus } from "../events/bus.js";
 import type { Notifier } from "../notify/outbox.js";
 import { isToolName, TOOL_SPECS, type ToolArgs, type ToolName } from "../agent/tools.js";
-import { createPaymentLink, retryPayment } from "../payments/ledger.js";
+import { createPaymentLink, retryPayment, settleInvoice } from "../payments/ledger.js";
 import {
   balanceDue,
   buildPlanSchedule,
@@ -203,16 +203,30 @@ const handlers: Handlers = {
   },
 
   waive_late_fee(ctx) {
+    const blocked = nothingOwed(ctx.invoice);
+    if (blocked) return blocked;
     if (!feeWaiverEligible(ctx.customer, ctx.invoice)) {
       return fail("NOT_ELIGIBLE", "The late fee cannot be waived for this account. Do not promise a waiver.");
     }
     ctx.repo.updateInvoice(ctx.invoice.id, { late_fee_waived: 1 });
-    const updated = ctx.repo.getInvoice(ctx.invoice.id)!;
+    const updated = settleInvoice(ctx.repo, ctx.invoice.id);
+    const balance = balanceDue(updated);
+    ctx.repo.capOpenPromises(updated.id, balance);
+    const plans = ctx.repo.plansForInvoice(updated.id);
+    let schedule: ReturnType<typeof buildPlanSchedule> | undefined;
+    for (const plan of plans) {
+      schedule = buildPlanSchedule(balance, plan.installments, ctx.today);
+      ctx.repo.updatePlanSchedule(plan.id, JSON.stringify(schedule));
+    }
     return {
       ok: true,
       waived_amount: ctx.invoice.late_fee,
-      new_balance: balanceDue(updated),
-      new_balance_spoken: spokenRupees(balanceDue(updated)),
+      new_balance: balance,
+      new_balance_spoken: spokenRupees(balance),
+      ...(updated.status === "paid" ? { instruction: "The waiver cleared the balance. Tell the customer nothing more is due." } : {}),
+      ...(schedule
+        ? { updated_plan_schedule: schedule.map((s) => ({ ...s, amount_spoken: spokenRupees(s.amount) })), plan_note: "The payment plan was recalculated without the fee. Read the new amounts back." }
+        : {}),
     };
   },
 

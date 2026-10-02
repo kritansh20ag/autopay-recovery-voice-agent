@@ -50,15 +50,17 @@ Each record has a DOB, a PIN code and a "play it like this" tip. The dashboard s
 | Rule | Where |
 |---|---|
 | Only numbers in `ALLOWED_DIAL_NUMBERS` can ever be dialed | `src/policy/dialPolicy.ts` |
-| Pre-dial gate: consent, do-not-call, open dispute, nothing owed, one live call at a time, 08:00–19:00 customer local time, at most 7 attempts in 7 days, 7-day quiet period after a conversation | `src/policy/dialPolicy.ts` |
+| Pre-dial gate, in order:<br>- consent<br>- do-not-call<br>- open dispute<br>- nothing owed<br>- open promise-to-pay or agreed plan<br>- one live call at a time<br>- 08:00–19:00 customer local time, with room for a full 5-minute call<br>- at most 7 attempts in 7 days<br>- 7-day quiet period after a conversation | `src/policy/dialPolicy.ts` |
 | Account tools return `NOT_VERIFIED` until DOB + PIN match; 2 misses lock the call | `src/retell/functions.ts` |
 | The agent learns the amount only after verification (dial-time variables carry the first name only) | `src/calls/dialer.ts` |
 | No card/OTP/PIN is ever collected by voice; payment goes through a secure link | prompt + `send_payment_link` |
 | Lost/stolen card shown to the customer as a generic issuer decline | `src/policy/offers.ts` |
 | Offer limits: promise-to-pay ≤ 14 days, plans of 2–3 parts, part-payment ≥ ₹500 or 20%, fee waiver only on a first failure, at most 2 retries | `src/policy/offers.ts` |
 | Voicemail gives company + callback number only (no amount, no reason) | `src/agent/agentConfig.ts` |
-| Every Retell request is HMAC-verified against the raw body | `src/retell/verify.ts` |
-| Webhooks are idempotent per `(event, call_id)` | `src/retell/webhooks.ts` |
+| Every Retell request is HMAC-verified against the raw body. The signed tool name must match the URL | `src/retell/verify.ts`, `src/app.ts` |
+| Webhooks are idempotent per `(event, call_id)`; the receipt and writes share one transaction | `src/retell/webhooks.ts` |
+| The tunnel only reaches the public listener (`/retell`, `/pay`, `/health`). The dashboard API listens on 127.0.0.1 only | `src/app.ts`, `src/server.ts` |
+| Tool calls and call creation are never auto-retried, so nothing is applied or dialed twice | `src/agent/agentConfig.ts`, `src/retell/client.ts` |
 
 The calling window is the stricter of the RBI recovery-call rule (08:00–19:00) and FDCPA/Reg F (08:00–21:00). Frequency limits follow Reg F's 7-in-7 presumption. Recording and AI disclosure come first in every call, following the FCC's 2024 ruling on AI voices. This is a demo, not legal advice.
 
@@ -71,11 +73,21 @@ Prerequisites:
 
 ```bash
 npm install
-cp env.example .env          # set RETELL_API_KEY and DEMO_PHONE_NUMBER (your own phone, E.164)
+cp env.example .env          # set RETELL_API_KEY, DEMO_PHONE_NUMBER and ALLOWED_DIAL_NUMBERS (your own phone, E.164)
 npm run smoke:call           # buys a US number (~$2/mo) and rings your phone with a 10-second test
-npm run live                 # builds the UI, starts the API + a cloudflared tunnel, provisions the agent
+npm run live                 # builds the UI, starts both listeners + a cloudflared tunnel, provisions the agent
 open http://localhost:3000
 ```
+
+**`smoke:call` decides whether the phone demo will work. Run it before anything else.**
+- Retell's SDK docs say purchased numbers dial US numbers only, but its international-calling page lists India at $0.15/min.
+- If the test call doesn't ring, import a Twilio US number into Retell (Twilio needs Voice Geo Permissions for India). No code changes are needed.
+- Or use the **Browser** button instead.
+
+| Port | Listener | Reachable from |
+|---|---|---|
+| 3000 | dashboard + API | localhost only |
+| 3001 | `/retell/*`, `/pay/*`, `/health` | the tunnel |
 
 `npm run live` re-provisions on every start, because a quick tunnel's URL changes each run. It updates the Retell LLM (prompt + 13 tools pointing at the tunnel), the agent (voice, languages, webhooks, voicemail, post-call analysis) and the number binding. The provisioned IDs are saved in the gitignored `.retell.json`.
 
@@ -94,7 +106,7 @@ No phone? Every row has a **Browser** button. It runs the same agent, tools and 
 ## Tests
 
 ```bash
-npm test          # 30 tests: policy gates, time math, offer limits, signed tool calls, end-to-end flows
+npm test          # 60 tests: policy gates, time math, offer limits, signed tool calls, end-to-end flows, campaign
 npm run typecheck
 ```
 
@@ -107,7 +119,15 @@ npm run typecheck
 - already paid
 - do-not-call
 
-It also checks that unsigned or tampered requests get a 401.
+It also checks that:
+- unsigned or tampered requests get a 401
+- the public listener exposes nothing from the dashboard
+- concurrent dials ring the phone only once
+- a stopped campaign stops promptly
+
+Before release, the whole stack was also run as a real server:
+- every API route was driven over HTTP on both listeners, including real Retell SDK error paths: 67/67 checks pass
+- the dashboard, call drawer and all 7 checkout states were audited at 9 widths (320–1920px) in light and dark mode, for horizontal overflow, WCAG AA contrast and 32px touch targets
 
 ## Layout
 

@@ -82,21 +82,24 @@ export async function provision(client: Retell, config: AppConfig, publicBaseUrl
 
   const llmParams = buildLlmParams(config, publicBaseUrl);
   let llmId = state.llmId;
+  let llmVersion: number | undefined;
   if (llmId) {
     try {
-      await client.llm.update(llmId, llmParams);
-      log(`Updated Retell LLM ${llmId}`);
+      llmVersion = (await client.llm.update(llmId, llmParams)).version;
+      log(`Updated Retell LLM ${llmId} (version ${llmVersion ?? "latest"})`);
     } catch (err) {
       if (!isNotFound(err)) throw err;
       llmId = undefined;
     }
   }
   if (!llmId) {
-    llmId = (await client.llm.create(llmParams)).llm_id;
-    log(`Created Retell LLM ${llmId}`);
+    const created = await client.llm.create(llmParams);
+    llmId = created.llm_id;
+    llmVersion = created.version;
+    log(`Created Retell LLM ${llmId} (version ${llmVersion ?? "latest"})`);
   }
 
-  const agentParams = buildAgentParams(config, { llmId, voiceId, publicBaseUrl });
+  const agentParams = buildAgentParams(config, { llmId, llmVersion, voiceId, publicBaseUrl });
   let agent: Retell.AgentResponse | undefined;
   if (state.agentId) {
     try {

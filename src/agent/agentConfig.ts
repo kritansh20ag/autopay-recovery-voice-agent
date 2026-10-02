@@ -79,10 +79,10 @@ export const POST_CALL_ANALYSIS: NonNullable<Retell.AgentCreateParams["post_call
   { type: "string", name: "next_best_action", description: "One short sentence on what the collections team should do next." },
 ];
 
-export function buildAgentParams(config: AppConfig, input: { llmId: string; voiceId: string; publicBaseUrl: string }): Retell.AgentCreateParams {
+export function buildAgentParams(config: AppConfig, input: { llmId: string; llmVersion?: number; voiceId: string; publicBaseUrl: string }): Retell.AgentCreateParams {
   return {
     agent_name: `${config.companyName} autopay recovery`,
-    response_engine: { type: "retell-llm", llm_id: input.llmId },
+    response_engine: { type: "retell-llm", llm_id: input.llmId, ...(input.llmVersion !== undefined ? { version: input.llmVersion } : {}) },
     voice_id: input.voiceId,
     language: ["en-IN", "hi-IN"],
     timezone: "Asia/Kolkata",

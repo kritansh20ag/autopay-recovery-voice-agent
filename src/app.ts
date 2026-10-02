@@ -5,7 +5,7 @@ import type { AppConfig } from "./config.js";
 import type { Repo } from "./db/db.js";
 import { seedDatabase } from "./db/seed.js";
 import { EventBus } from "./events/bus.js";
-import { Dialer, type AgentBinding } from "./calls/dialer.js";
+import { Dialer, type AgentBinding, type DialerDeps } from "./calls/dialer.js";
 import { refreshDisposition } from "./calls/disposition.js";
 import { buildCallDetail, buildState } from "./api/state.js";
 import { createNotifier, type Notifier } from "./notify/outbox.js";
@@ -26,6 +26,7 @@ export interface AppDeps {
   bus?: EventBus;
   notifier?: Notifier;
   webDist?: string;
+  dialerTimings?: DialerDeps["timings"];
 }
 
 const TEST_CARD = "4242424242424242";
@@ -48,7 +49,7 @@ export function createApp(deps: AppDeps) {
   const { repo, config } = deps;
   const bus = deps.bus ?? new EventBus();
   const notifier = deps.notifier ?? createNotifier(repo, config);
-  const dialer = new Dialer({ repo, bus, config, provider: deps.provider, binding: deps.binding });
+  const dialer = new Dialer({ repo, bus, config, provider: deps.provider, binding: deps.binding, timings: deps.dialerTimings });
   const pub = express.Router();
   const app = express();
   app.disable("x-powered-by");

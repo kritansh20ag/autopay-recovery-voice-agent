@@ -1,5 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { handleRetellWebhook } from "../src/retell/webhooks.js";
 import { makeApp, retellCall, signed } from "./helpers.js";
 
 type App = ReturnType<typeof makeApp>;
@@ -314,5 +315,52 @@ describe("dialer", () => {
     const b = await placeCall(t, "cus_06");
     await webhook(t, "call_ended", retellCall(b, "cus_06", { disconnection_reason: "voicemail_reached" }));
     expect(t.repo.getCall(b)!.disposition).toBe("voicemail");
+  });
+});
+
+describe("campaign", () => {
+  const waitUntil = async (cond: () => boolean, ms = 2000) => {
+    const end = Date.now() + ms;
+    while (!cond() && Date.now() < end) await new Promise((r) => setTimeout(r, 10));
+    return cond();
+  };
+
+  it("stops promptly when Stop is pressed while a dial is in flight", async () => {
+    const t = makeApp({ dialDelayMs: 100 });
+    t.dialer.startCampaign();
+    await waitUntil(() => t.providerCalls.length === 1);
+    t.dialer.stopCampaign();
+    expect(await waitUntil(() => !t.dialer.campaignState().running, 500)).toBe(true);
+    expect(t.providerCalls).toHaveLength(1);
+  });
+
+  it("moves on when call_ended arrives before the dial request returns", async () => {
+    let t: ReturnType<typeof makeApp>;
+    t = makeApp({
+      onDial: (callId, req) => {
+        handleRetellWebhook({ repo: t.repo, bus: t.bus }, { event: "call_ended", call: { call_id: callId, metadata: req.metadata, disconnection_reason: "dial_failed" } });
+      },
+    });
+    t.dialer.startCampaign();
+    expect(await waitUntil(() => t.providerCalls.length >= 2, 1500)).toBe(true);
+    t.dialer.stopCampaign();
+    expect(t.dialer.campaignState().results[0]).toMatchObject({ customerId: "cus_01", outcome: "failed" });
+  });
+
+  it("dials eligible customers one at a time and records blocked ones", async () => {
+    const t = makeApp();
+    const sub = t.bus.subscribe((e) => {
+      if (e.type === "dial.placed" && e.callId) {
+        setTimeout(() => handleRetellWebhook({ repo: t.repo, bus: t.bus }, { event: "call_ended", call: { call_id: e.callId!, disconnection_reason: "dial_no_answer" } }), 5);
+      }
+    });
+    t.dialer.startCampaign();
+    expect(await waitUntil(() => !t.dialer.campaignState().running, 3000)).toBe(true);
+    sub();
+    const results = t.dialer.campaignState().results;
+    expect(results).toHaveLength(10);
+    expect(results.find((r) => r.customerId === "cus_09")).toMatchObject({ outcome: "DO_NOT_CALL" });
+    expect(results.filter((r) => r.outcome === "no_answer")).toHaveLength(9);
+    expect(t.providerCalls).toHaveLength(9);
   });
 });

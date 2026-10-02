@@ -35,14 +35,18 @@ export function makeRepo(at: Date = NOON_IST) {
   return { repo, clock };
 }
 
-export function fakeProvider(opts: { dialDelayMs?: number } = {}) {
+export type DialHook = (callId: string, req: Parameters<VoiceProvider["createPhoneCall"]>[0]) => void;
+
+export function fakeProvider(opts: { dialDelayMs?: number; onDial?: DialHook } = {}) {
   let n = 0;
   const calls: Array<Parameters<VoiceProvider["createPhoneCall"]>[0]> = [];
   const provider: VoiceProvider = {
     async createPhoneCall(req) {
       calls.push(req);
+      const callId = `call_fake_${++n}`;
       if (opts.dialDelayMs) await new Promise((r) => setTimeout(r, opts.dialDelayMs));
-      return { callId: `call_fake_${++n}` };
+      opts.onDial?.(callId, req);
+      return { callId };
     },
     async createWebCall() {
       return { callId: `web_fake_${++n}`, accessToken: "tok", transport: "gateway", iceServers: [] };
@@ -53,13 +57,15 @@ export function fakeProvider(opts: { dialDelayMs?: number } = {}) {
 
 export const silentNotifier: Notifier = { sendPaymentLink: async () => ["sms"] };
 
-export function makeApp(opts: { at?: Date; env?: Record<string, string>; dialDelayMs?: number } = {}) {
+export function makeApp(
+  opts: { at?: Date; env?: Record<string, string>; dialDelayMs?: number; onDial?: DialHook } = {},
+) {
   const { repo, clock } = makeRepo(opts.at);
   const config = testConfig(opts.env);
   const bus = new EventBus();
   const events: AppEvent[] = [];
   bus.subscribe((e) => events.push(e));
-  const { provider, calls } = fakeProvider({ dialDelayMs: opts.dialDelayMs });
+  const { provider, calls } = fakeProvider({ dialDelayMs: opts.dialDelayMs, onDial: opts.onDial });
   const { app, publicApp, dialer } = createApp({
     repo,
     config,
@@ -67,6 +73,7 @@ export function makeApp(opts: { at?: Date; env?: Record<string, string>; dialDel
     provider,
     binding: () => ({ agentId: "agent_test", agentVersion: 3, fromNumber: "+14155550100" }),
     publicBaseUrl: () => "https://demo.example.test",
+    dialerTimings: { interCallPauseMs: 0, callWaitMs: 2000 },
   });
   return { app, publicApp, repo, clock, config, bus, events, dialer, providerCalls: calls };
 }

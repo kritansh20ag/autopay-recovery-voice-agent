@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import type { AppConfig } from "../config.js";
 import type { CustomerRow, Repo } from "../db/db.js";
 import type { EventBus } from "../events/bus.js";
@@ -17,7 +18,16 @@ export interface DialerDeps {
   config: AppConfig;
   provider: VoiceProvider | undefined;
   binding: () => AgentBinding | undefined;
+  timings?: Partial<DialerTimings>;
 }
+
+export interface DialerTimings {
+  staleCallMs: number;
+  callWaitMs: number;
+  interCallPauseMs: number;
+}
+
+const DEFAULT_TIMINGS: DialerTimings = { staleCallMs: 10 * 60_000, callWaitMs: 8 * 60_000, interCallPauseMs: 5000 };
 
 export type DialResult = { ok: true; callId: string } | { ok: false; code: string; reason: string };
 
@@ -30,8 +40,6 @@ export interface CampaignState {
 }
 
 const DAY_MS = 86_400_000;
-const STALE_CALL_MS = 10 * 60_000;
-const CALL_WAIT_MS = 8 * 60_000;
 
 export function spokenPhone(e164: string | undefined): string {
   if (!e164) return "the number we called from";
@@ -42,8 +50,11 @@ export class Dialer {
   private campaign: CampaignState = { running: false, results: [] };
   private abort?: AbortController;
   private placing = false;
+  private readonly timings: DialerTimings;
 
-  constructor(private readonly deps: DialerDeps) {}
+  constructor(private readonly deps: DialerDeps) {
+    this.timings = { ...DEFAULT_TIMINGS, ...deps.timings };
+  }
 
   evaluate(customer: CustomerRow): DialDecision {
     const { repo, config } = this.deps;
@@ -58,7 +69,7 @@ export class Dialer {
       window: config.callingWindow,
       dialedLast7d: repo.dialedAttemptsSince(customer.id, new Date(now.getTime() - 7 * DAY_MS).toISOString()),
       lastRightPartyContactAt: repo.lastRightPartyContactAt(customer.id),
-      callInProgress: this.placing || (!!active && now.getTime() - Date.parse(active.created_at) < STALE_CALL_MS),
+      callInProgress: this.placing || (!!active && now.getTime() - Date.parse(active.created_at) < this.timings.staleCallMs),
     });
   }
 
@@ -182,12 +193,16 @@ export class Dialer {
       }
       this.campaign.currentCallId = result.callId;
       this.publishCampaign();
-      const ended = await this.deps.bus.waitFor((e) => e.type === "call.ended" && e.callId === result.callId, CALL_WAIT_MS, signal);
+      const row = this.deps.repo.getCall(result.callId);
+      const ended =
+        row?.status === "ended"
+          ? { data: { disposition: row.disposition ?? "ended" } }
+          : await this.deps.bus.waitFor((e) => e.type === "call.ended" && e.callId === result.callId, this.timings.callWaitMs, signal);
       const disposition = (ended?.data?.disposition as string | undefined) ?? (signal.aborted ? "stopped" : "timed_out");
       this.campaign.results.push({ customerId: customer.id, outcome: disposition });
       this.publishCampaign();
       if (signal.aborted) return;
-      await new Promise((r) => setTimeout(r, 5000));
+      await sleep(this.timings.interCallPauseMs, undefined, { signal }).catch(() => undefined);
     }
   }
 }

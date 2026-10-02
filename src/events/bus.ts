@@ -40,6 +40,7 @@ export class EventBus {
   }
 
   waitFor(predicate: (event: AppEvent) => boolean, timeoutMs: number, signal?: AbortSignal): Promise<AppEvent | undefined> {
+    if (signal?.aborted) return Promise.resolve(undefined);
     return new Promise((resolve) => {
       const done = (value: AppEvent | undefined) => {
         clearTimeout(timer);

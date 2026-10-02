@@ -49,6 +49,12 @@ const requireJsonPosts: RequestHandler = (req, res, next) => {
   next();
 };
 
+const DIAL_STATUS: Record<string, number> = { UNKNOWN_CUSTOMER: 404, NOT_PROVISIONED: 503, PROVIDER_ERROR: 502 };
+
+function dialStatus(result: { ok: boolean; code?: string }): number {
+  return result.ok ? 201 : (DIAL_STATUS[result.code ?? ""] ?? 409);
+}
+
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   const status = typeof err?.status === "number" ? err.status : 500;
   if (status >= 500) console.error("[api]", err);
@@ -120,12 +126,12 @@ export function createApp(deps: AppDeps) {
 
   app.post("/api/customers/:id/call", async (req, res) => {
     const result = await dialer.dial(req.params.id);
-    res.status(result.ok ? 201 : result.code === "PROVIDER_ERROR" ? 502 : 409).json(result);
+    res.status(dialStatus(result)).json(result);
   });
 
   app.post("/api/customers/:id/web-call", async (req, res) => {
     const result = await dialer.startWebCall(req.params.id);
-    res.status(result.ok ? 201 : result.code === "PROVIDER_ERROR" ? 502 : 409).json(result);
+    res.status(dialStatus(result)).json(result);
   });
 
   app.post("/api/campaign/start", (_req, res) => {

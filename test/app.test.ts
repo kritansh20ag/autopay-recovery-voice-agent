@@ -483,3 +483,12 @@ describe("webhook atomicity", () => {
     expect(t.repo.getCall(id)!.status).toBe("ended");
   });
 });
+
+describe("dial HTTP status codes", () => {
+  it("maps outcomes to meaningful statuses", async () => {
+    const t = makeApp();
+    expect((await request(t.app).post("/api/customers/nope/call").send({})).status).toBe(404);
+    expect((await request(t.app).post("/api/customers/nope/web-call").send({})).status).toBe(404);
+    expect((await request(t.app).post("/api/customers/cus_09/call").send({})).status).toBe(409);
+  });
+});

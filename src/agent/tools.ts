@@ -33,7 +33,7 @@ export const TOOL_SPECS = {
       "Send a secure payment link by SMS. purpose=pay_full pays the balance, partial pays part of it (amount required), update_method replaces the card/bank and clears the balance, new_mandate re-creates UPI AutoPay and clears the balance. Use this instead of ever taking card or bank details on the call.",
     args: z.object({
       purpose: z.enum(["pay_full", "partial", "update_method", "new_mandate"]),
-      amount: rupees.optional().describe("Required only for purpose=partial"),
+      amount: rupees.nullish().describe("Required only for purpose=partial, otherwise null"),
     }),
   },
   record_promise_to_pay: {
@@ -42,7 +42,7 @@ export const TOOL_SPECS = {
       "Record the customer's commitment to pay on a specific date (at most 14 days away). Confirm the date out loud first.",
     args: z.object({
       promise_date: ymd,
-      amount: rupees.optional().describe("Defaults to the full remaining balance"),
+      amount: rupees.nullish().describe("Null means the full remaining balance"),
     }),
   },
   set_up_payment_plan: {
@@ -62,9 +62,9 @@ export const TOOL_SPECS = {
     description:
       "Customer says they already paid. Capture what they say; the system checks the ledger, pauses collection and opens a review.",
     args: z.object({
-      paid_on: z.string().optional().describe("When they say they paid, as they described it"),
-      method: z.string().optional().describe("How they say they paid, e.g. UPI, card, cash"),
-      reference: z.string().optional().describe("Any transaction reference they can read out"),
+      paid_on: z.string().nullish().describe("When they say they paid, as they described it"),
+      method: z.string().nullish().describe("How they say they paid, e.g. UPI, card, cash"),
+      reference: z.string().nullish().describe("Any transaction reference they can read out"),
     }),
   },
   log_dispute: {
@@ -83,7 +83,7 @@ export const TOOL_SPECS = {
   mark_do_not_call: {
     gated: false,
     description: "Customer asks to stop calling. Call immediately, confirm politely, then end the call. Do not argue or try to collect.",
-    args: z.object({ reason: z.string().optional() }),
+    args: z.object({ reason: z.string().nullish() }),
   },
   escalate_to_human: {
     gated: false,
@@ -113,10 +113,11 @@ export function isToolName(name: string): name is ToolName {
 export interface ToolParameters {
   type: "object";
   properties: Record<string, unknown>;
-  required?: string[];
+  required: string[];
+  additionalProperties: false;
 }
 
 export function toolParametersJsonSchema(name: ToolName): ToolParameters {
-  const { properties = {}, required } = z.toJSONSchema(TOOL_SPECS[name].args, { io: "input" }) as Partial<ToolParameters>;
-  return required?.length ? { type: "object", properties, required } : { type: "object", properties };
+  const { properties = {} } = z.toJSONSchema(TOOL_SPECS[name].args, { io: "input" }) as Partial<ToolParameters>;
+  return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }

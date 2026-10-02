@@ -10,6 +10,7 @@ import {
   validatePromiseDate,
 } from "../src/policy/offers.js";
 import { addDays, isValidYmd, localParts, zonedLocalToUtc } from "../src/policy/time.js";
+import { TOOL_NAMES, toolParametersJsonSchema } from "../src/agent/tools.js";
 import { DEMO_NUMBER, makeRepo, NOON_IST } from "./helpers.js";
 
 function ctx(overrides: Partial<DialContext> = {}): DialContext {
@@ -131,5 +132,21 @@ describe("offer policy", () => {
     expect(schedule.map((s) => s.due_date)).toEqual(["2026-10-09", "2026-10-23", "2026-11-06"]);
     expect(planEligibility(inv("cus_08"), 4)).toMatchObject({ error: "INVALID_INSTALLMENTS" });
     expect(planEligibility(inv("cus_03"), 2)).toMatchObject({ error: "BALANCE_TOO_SMALL" });
+  });
+});
+
+describe("tool schemas", () => {
+  it("meet OpenAI strict mode: every property required, no extra properties", () => {
+    for (const name of TOOL_NAMES) {
+      const schema = toolParametersJsonSchema(name);
+      expect(schema.type).toBe("object");
+      expect(schema.additionalProperties).toBe(false);
+      expect([...schema.required].sort()).toEqual(Object.keys(schema.properties).sort());
+    }
+  });
+
+  it("marks optional arguments as nullable", () => {
+    const amount = toolParametersJsonSchema("send_payment_link").properties.amount as { anyOf?: Array<{ type?: string }> };
+    expect(amount.anyOf?.some((s) => s.type === "null")).toBe(true);
   });
 });

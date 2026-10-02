@@ -85,6 +85,16 @@ describe("verification gate", () => {
     expect(await tool(t, callId, "cus_02", "send_payment_link", { purpose: "pay_full" })).toMatchObject({ ok: false, error: "VERIFICATION_LOCKED" });
   });
 
+  it("accepts null for optional arguments, as strict-mode tool calls send them", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_02");
+    await tool(t, callId, "cus_02", "verify_identity", verifyArgs(t, "cus_02"));
+    expect(await tool(t, callId, "cus_02", "send_payment_link", { purpose: "update_method", amount: null })).toMatchObject({ ok: true, amount: 2599 });
+    expect(await tool(t, callId, "cus_02", "report_already_paid", { paid_on: null, method: null, reference: null })).toMatchObject({ ok: true });
+    expect(await tool(t, callId, "cus_02", "mark_do_not_call", { reason: null })).toMatchObject({ ok: true });
+    expect(t.repo.getCustomer("cus_02")!.dnc).toBe(1);
+  });
+
   it("rejects malformed arguments without crashing", async () => {
     const t = makeApp();
     const callId = await placeCall(t, "cus_02");

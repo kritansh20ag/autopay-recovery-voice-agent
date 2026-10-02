@@ -142,7 +142,7 @@ const handlers: Handlers = {
     let amount = balance;
     if (args.purpose === "partial") {
       const bounds = partialBounds(ctx.invoice);
-      if (args.amount === undefined) return fail("AMOUNT_REQUIRED", `Ask how much they can pay now (between ${spokenRupees(bounds.min)} and ${spokenRupees(bounds.max)}).`);
+      if (args.amount == null) return fail("AMOUNT_REQUIRED", `Ask how much they can pay now (between ${spokenRupees(bounds.min)} and ${spokenRupees(bounds.max)}).`);
       if (args.amount < bounds.min || args.amount > bounds.max) {
         return fail("AMOUNT_OUT_OF_RANGE", `Part-payments must be between ${spokenRupees(bounds.min)} and ${spokenRupees(bounds.max)}.`, bounds);
       }

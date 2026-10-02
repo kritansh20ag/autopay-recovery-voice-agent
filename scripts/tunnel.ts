@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import { loadConfig, writeRuntimeBaseUrl } from "../src/config.js";
+import { clearRuntimeBaseUrl, loadConfig, writeRuntimeBaseUrl } from "../src/config.js";
 import { provision } from "../src/agent/provision.js";
 import { createRetell, describeProviderError } from "../src/retell/client.js";
 
 const config = loadConfig();
-const URL_PATTERN = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
+const URL_PATTERN = /https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com/;
 
 async function waitForHealth(baseUrl: string, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
@@ -53,7 +53,11 @@ const onOutput = async (chunk: Buffer) => {
 child.stdout.on("data", onOutput);
 child.stderr.on("data", onOutput);
 
+clearRuntimeBaseUrl();
 const stop = () => child.kill("SIGTERM");
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
-child.on("exit", (code) => process.exit(code ?? 0));
+child.on("exit", (code) => {
+  clearRuntimeBaseUrl();
+  process.exit(code ?? 0);
+});

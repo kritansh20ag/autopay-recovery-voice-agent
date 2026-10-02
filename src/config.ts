@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 
@@ -112,6 +112,10 @@ export function readRuntimeBaseUrl(): string | undefined {
 
 export function writeRuntimeBaseUrl(publicBaseUrl: string): void {
   writeFileSync(RUNTIME_FILE, JSON.stringify({ publicBaseUrl }, null, 2) + "\n");
+}
+
+export function clearRuntimeBaseUrl(): void {
+  rmSync(RUNTIME_FILE, { force: true });
 }
 
 export function resolvePublicBaseUrl(config: AppConfig): string {

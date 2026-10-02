@@ -241,7 +241,7 @@ const handlers: Handlers = {
       customer_id: ctx.customer.id,
       call_id: ctx.call.id,
       kind: "already_paid",
-      reason: `Customer reports payment. When: ${args.paid_on ?? "n/a"}; method: ${args.method ?? "n/a"}; ref: ${args.reference ?? "n/a"}. Ledger: ${ctx.invoice.ledger_note ?? "no matching entry"}.`,
+      reason: `Customer reports payment. When: ${args.paid_on ?? "n/a"}; method: ${args.method ?? "n/a"}; ref: ${args.reference ?? "n/a"}. Ledger: ${(ctx.invoice.ledger_note ?? "no matching entry").replace(/\.$/, "")}.`,
     });
     if (ctx.invoice.ledger_note) {
       return {

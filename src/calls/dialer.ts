@@ -5,6 +5,7 @@ import type { EventBus } from "../events/bus.js";
 import { evaluateDial, evaluateWebCall, type DialDecision } from "../policy/dialPolicy.js";
 import { localDate } from "../policy/time.js";
 import { describeProviderError, type VoiceProvider, type WebCallSession } from "../retell/client.js";
+import { handleRetellWebhook } from "../retell/webhooks.js";
 
 export interface AgentBinding {
   agentId: string;
@@ -25,9 +26,11 @@ export interface DialerTimings {
   staleCallMs: number;
   callWaitMs: number;
   interCallPauseMs: number;
+  reconcileAfterMs: number;
 }
 
-const DEFAULT_TIMINGS: DialerTimings = { staleCallMs: 10 * 60_000, callWaitMs: 8 * 60_000, interCallPauseMs: 5000 };
+const DEFAULT_TIMINGS: DialerTimings = { staleCallMs: 6 * 60_000, callWaitMs: 7 * 60_000, interCallPauseMs: 5000, reconcileAfterMs: 90_000 };
+const TERMINAL = new Set(["ended", "error", "not_connected"]);
 
 export type DialResult = { ok: true; callId: string } | { ok: false; code: string; reason: string };
 
@@ -50,6 +53,7 @@ export class Dialer {
   private campaign: CampaignState = { running: false, results: [] };
   private abort?: AbortController;
   private placing = false;
+  private lastReconcile = 0;
   private readonly timings: DialerTimings;
 
   constructor(private readonly deps: DialerDeps) {
@@ -87,10 +91,28 @@ export class Dialer {
     };
   }
 
+  async reconcileActiveCall(minIntervalMs = 0): Promise<void> {
+    const { repo, bus, provider } = this.deps;
+    const active = repo.activeCall();
+    const now = repo.nowDate().getTime();
+    if (!active || !provider || now - Date.parse(active.created_at) < this.timings.reconcileAfterMs) return;
+    if (Date.now() - this.lastReconcile < minIntervalMs) return;
+    this.lastReconcile = Date.now();
+    try {
+      const call = await provider.getCall(active.id);
+      if (call.call_status && TERMINAL.has(call.call_status)) {
+        handleRetellWebhook({ repo, bus }, { event: "call_ended", call: { ...call, disconnection_reason: call.disconnection_reason ?? call.call_status } });
+      }
+    } catch (err) {
+      console.warn(`[dialer] could not reconcile call ${active.id}: ${describeProviderError(err)}`);
+    }
+  }
+
   async dial(customerId: string): Promise<DialResult> {
     const { repo, bus, config, provider } = this.deps;
     const customer = repo.getCustomer(customerId);
     if (!customer) return { ok: false, code: "UNKNOWN_CUSTOMER", reason: "No such customer." };
+    await this.reconcileActiveCall();
 
     const decision = this.evaluate(customer);
     if (!decision.allowed) {
@@ -198,7 +220,9 @@ export class Dialer {
         row?.status === "ended"
           ? { data: { disposition: row.disposition ?? "ended" } }
           : await this.deps.bus.waitFor((e) => e.type === "call.ended" && e.callId === result.callId, this.timings.callWaitMs, signal);
-      const disposition = (ended?.data?.disposition as string | undefined) ?? (signal.aborted ? "stopped" : "timed_out");
+      if (!ended && !signal.aborted) await this.reconcileActiveCall();
+      const disposition =
+        (ended?.data?.disposition as string | undefined) ?? this.deps.repo.getCall(result.callId)?.disposition ?? (signal.aborted ? "stopped" : "timed_out");
       this.campaign.results.push({ customerId: customer.id, outcome: disposition });
       this.publishCampaign();
       if (signal.aborted) return;

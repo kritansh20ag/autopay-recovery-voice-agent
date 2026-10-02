@@ -1,4 +1,5 @@
 import Retell from "retell-sdk";
+import type { RetellCallPayload } from "./webhooks.js";
 
 export interface PhoneCallRequest {
   fromNumber: string;
@@ -26,6 +27,7 @@ export interface WebCallSession {
 export interface VoiceProvider {
   createPhoneCall(req: PhoneCallRequest): Promise<{ callId: string }>;
   createWebCall(req: WebCallRequest): Promise<WebCallSession>;
+  getCall(callId: string): Promise<RetellCallPayload>;
 }
 
 export function createRetell(apiKey: string): Retell {
@@ -53,6 +55,9 @@ export function retellVoiceProvider(client: Retell): VoiceProvider {
         metadata: req.metadata,
       });
       return { callId: call.call_id, accessToken: call.access_token, transport: call.transport, iceServers: call.ice_servers };
+    },
+    async getCall(callId) {
+      return (await client.call.retrieve(callId)) as RetellCallPayload;
     },
   };
 }

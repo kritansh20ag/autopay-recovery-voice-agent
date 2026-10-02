@@ -51,6 +51,9 @@ export function fakeProvider(opts: { dialDelayMs?: number; onDial?: DialHook } =
     async createWebCall() {
       return { callId: `web_fake_${++n}`, accessToken: "tok", transport: "gateway", iceServers: [] };
     },
+    async getCall(callId) {
+      return { call_id: callId, call_status: "ended", disconnection_reason: "user_hangup", duration_ms: 42_000 };
+    },
   };
   return { provider, calls };
 }

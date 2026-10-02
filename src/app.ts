@@ -89,6 +89,7 @@ export function createApp(deps: AppDeps) {
   app.use("/api", requireJsonPosts, express.json({ limit: "100kb" }));
 
   app.get("/api/state", (_req, res) => {
+    void dialer.reconcileActiveCall(15_000);
     res.json(buildState(repo, config, dialer, { provisioned: !!deps.binding()?.fromNumber, publicBaseUrl: deps.publicBaseUrl() }));
   });
 

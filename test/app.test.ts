@@ -312,6 +312,16 @@ describe("dialer", () => {
     expect(t.providerCalls).toHaveLength(1);
   });
 
+  it("recovers from a lost call_ended webhook by asking Retell before the next dial", async () => {
+    const t = makeApp();
+    const first = await placeCall(t, "cus_01");
+    expect((await request(t.app).post("/api/customers/cus_02/call").send({})).body.code).toBe("CALL_IN_PROGRESS");
+    t.clock.advance(2 * 60_000);
+    const second = await request(t.app).post("/api/customers/cus_02/call").send({});
+    expect(second.status).toBe(201);
+    expect(t.repo.getCall(first)).toMatchObject({ status: "ended", disconnection_reason: "user_hangup", disposition: "not_verified" });
+  });
+
   it("refuses to dial outside calling hours", async () => {
     const t = makeApp({ at: new Date("2026-10-02T16:00:00Z") });
     const res = await request(t.app).post("/api/customers/cus_01/call").send({});

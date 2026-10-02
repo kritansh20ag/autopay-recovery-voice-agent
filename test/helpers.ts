@@ -35,12 +35,13 @@ export function makeRepo(at: Date = NOON_IST) {
   return { repo, clock };
 }
 
-export function fakeProvider() {
+export function fakeProvider(opts: { dialDelayMs?: number } = {}) {
   let n = 0;
   const calls: Array<Parameters<VoiceProvider["createPhoneCall"]>[0]> = [];
   const provider: VoiceProvider = {
     async createPhoneCall(req) {
       calls.push(req);
+      if (opts.dialDelayMs) await new Promise((r) => setTimeout(r, opts.dialDelayMs));
       return { callId: `call_fake_${++n}` };
     },
     async createWebCall() {
@@ -52,13 +53,13 @@ export function fakeProvider() {
 
 export const silentNotifier: Notifier = { sendPaymentLink: async () => ["sms"] };
 
-export function makeApp(opts: { at?: Date; env?: Record<string, string> } = {}) {
+export function makeApp(opts: { at?: Date; env?: Record<string, string>; dialDelayMs?: number } = {}) {
   const { repo, clock } = makeRepo(opts.at);
   const config = testConfig(opts.env);
   const bus = new EventBus();
   const events: AppEvent[] = [];
   bus.subscribe((e) => events.push(e));
-  const { provider, calls } = fakeProvider();
+  const { provider, calls } = fakeProvider({ dialDelayMs: opts.dialDelayMs });
   const { app, publicApp, dialer } = createApp({
     repo,
     config,

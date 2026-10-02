@@ -229,6 +229,17 @@ describe("dialer", () => {
     expect(second.body.code).toBe("CALL_IN_PROGRESS");
   });
 
+  it("places only one call when two dials race while Retell is still answering", async () => {
+    const t = makeApp({ dialDelayMs: 100 });
+    const [a, b] = await Promise.all([
+      request(t.app).post("/api/customers/cus_01/call").send({}),
+      request(t.app).post("/api/customers/cus_02/call").send({}),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+    expect([a.body.code, b.body.code]).toContain("CALL_IN_PROGRESS");
+    expect(t.providerCalls).toHaveLength(1);
+  });
+
   it("refuses to dial outside calling hours", async () => {
     const t = makeApp({ at: new Date("2026-10-02T16:00:00Z") });
     const res = await request(t.app).post("/api/customers/cus_01/call").send({});

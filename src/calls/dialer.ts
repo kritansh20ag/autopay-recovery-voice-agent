@@ -41,6 +41,7 @@ export function spokenPhone(e164: string | undefined): string {
 export class Dialer {
   private campaign: CampaignState = { running: false, results: [] };
   private abort?: AbortController;
+  private placing = false;
 
   constructor(private readonly deps: DialerDeps) {}
 
@@ -57,7 +58,7 @@ export class Dialer {
       window: config.callingWindow,
       dialedLast7d: repo.dialedAttemptsSince(customer.id, new Date(now.getTime() - 7 * DAY_MS).toISOString()),
       lastRightPartyContactAt: repo.lastRightPartyContactAt(customer.id),
-      callInProgress: !!active && now.getTime() - Date.parse(active.created_at) < STALE_CALL_MS,
+      callInProgress: this.placing || (!!active && now.getTime() - Date.parse(active.created_at) < STALE_CALL_MS),
     });
   }
 
@@ -91,6 +92,7 @@ export class Dialer {
       return { ok: false, code: "NOT_PROVISIONED", reason: "Retell is not configured. Set RETELL_API_KEY and run `npm run provision`." };
     }
 
+    this.placing = true;
     const attemptId = repo.insertDialAttempt({ customer_id: customer.id, call_id: null, channel: "phone", result: "dialed", block_code: null, block_reason: null });
     try {
       const { callId } = await provider.createPhoneCall({
@@ -110,6 +112,8 @@ export class Dialer {
       repo.updateDialAttempt(attemptId, { result: "error", block_code: "PROVIDER_ERROR", block_reason: reason });
       bus.publish({ type: "dial.failed", customerId: customer.id, data: { reason } });
       return { ok: false, code: "PROVIDER_ERROR", reason };
+    } finally {
+      this.placing = false;
     }
   }
 

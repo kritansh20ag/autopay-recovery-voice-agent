@@ -1,0 +1,10 @@
+node_modules/
+web/dist/
+data/*.db*
+.env
+.env.*
+.retell.json
+.runtime.json
+*.log
+.DS_Store
+coverage/

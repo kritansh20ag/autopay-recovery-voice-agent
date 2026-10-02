@@ -1,0 +1,45 @@
+{
+  "name": "autopay-recovery-voice-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Outbound AI voice agent (Retell) that recovers failed autopay payments, with a live dashboard, policy guardrails and a mock checkout.",
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"tsx watch src/server.ts\" \"vite --config web/vite.config.ts\"",
+    "build": "vite build --config web/vite.config.ts",
+    "start": "tsx src/server.ts",
+    "live": "npm run build && concurrently -k -n api,tunnel -c blue,green \"tsx src/server.ts\" \"tsx scripts/tunnel.ts\"",
+    "seed": "tsx src/db/seed.ts",
+    "provision": "tsx src/agent/provision.ts",
+    "smoke:call": "tsx scripts/smoke-call.ts",
+    "export:calls": "tsx scripts/export-calls.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json && tsc -p web/tsconfig.json"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "retell-sdk": "^6.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/supertest": "^6.0.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "retell-client-js-sdk": "^3.0.0",
+    "supertest": "^7.1.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^4.0.0"
+  }
+}

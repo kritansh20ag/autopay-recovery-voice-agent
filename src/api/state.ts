@@ -87,15 +87,16 @@ export function buildState(repo: Repo, config: AppConfig, dialer: Dialer, extras
   });
 
   const allInvoices = [...invoices.values()];
-  const owed = allInvoices.reduce((s, i) => s + i.amount + i.late_fee, 0);
+  const owed = allInvoices.reduce((s, i) => s + totalDue(i), 0);
   const recovered = allInvoices.reduce((s, i) => s + i.paid_amount, 0);
   const dialed = attempts.filter((a) => a.result === "dialed").length;
   const ended = calls.filter((k) => k.status === "ended");
   const connected = ended.filter((k) => k.disposition && !NOT_CONNECTED.has(k.disposition)).length;
   const rightParty = calls.filter((k) => k.verified).length;
   const voicemails = ended.filter((k) => k.disposition === "voicemail").length;
-  const toolOk = (name: string) =>
-    (repo.db.prepare("SELECT COUNT(*) AS n FROM tool_invocations WHERE name = ? AND ok = 1").get(name) as { n: number }).n;
+  const optOuts = repo.db
+    .prepare("SELECT COUNT(DISTINCT customer_id) AS n FROM tool_invocations WHERE name = 'mark_do_not_call' AND ok = 1")
+    .get() as { n: number };
 
   return {
     config: {
@@ -122,12 +123,11 @@ export function buildState(repo: Repo, config: AppConfig, dialer: Dialer, extras
       plans: plans.length,
       linksSent: links.length,
       linksPaid: links.filter((l) => l.status === "paid").length,
-      optOuts: toolOk("mark_do_not_call"),
+      optOuts: optOuts.n,
       escalations: escalations.filter((e) => e.kind !== "wrong_party").length,
       voicemails,
       blocked: attempts.filter((a) => a.result === "blocked").length,
       outstanding: allInvoices.reduce((s, i) => s + balanceDue(i), 0),
-      totalDue: allInvoices.reduce((s, i) => s + totalDue(i), 0),
     },
     customers: customerViews,
     calls: calls.slice(0, 50).map((k) => callSummary(k, nameOf.get(k.customer_id))),

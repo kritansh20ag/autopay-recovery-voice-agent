@@ -285,9 +285,8 @@ const handlers: Handlers = {
     return { ok: true, scheduled_for_local: args.callback_time_local, instruction: "Confirm the callback time and end the call politely." };
   },
 
-  mark_do_not_call(ctx, args) {
+  mark_do_not_call(ctx) {
     ctx.repo.updateCustomer(ctx.customer.id, { dnc: 1 });
-    ctx.repo.insertEscalation({ customer_id: ctx.customer.id, call_id: ctx.call.id, kind: "human", reason: `Do-not-call requested${args.reason ? `: ${args.reason}` : ""}` });
     return { ok: true, instruction: "Confirm they will not receive further calls from us, apologise for the disturbance, and end the call." };
   },
 

@@ -23,6 +23,11 @@ async function placeCall(t: App, customerId: string) {
   return res.body.callId as string;
 }
 
+async function placeCallAfter(t: App, previousCallId: string, customerId: string) {
+  await webhook(t, "call_ended", retellCall(previousCallId, t.repo.getCall(previousCallId)!.customer_id, { disconnection_reason: "user_hangup" }));
+  return placeCall(t, customerId);
+}
+
 const verifyArgs = (t: App, id: string) => {
   const c = t.repo.getCustomer(id)!;
   return { date_of_birth: c.dob, pincode: c.pincode };
@@ -202,6 +207,14 @@ describe("end-to-end recovery", () => {
     expect(await tool(t, callId, "cus_08", "waive_late_fee")).toMatchObject({ ok: false, error: "NOT_ELIGIBLE" });
     const plan = await tool(t, callId, "cus_08", "set_up_payment_plan", { installments: 3 });
     expect(plan.schedule.map((s: any) => s.amount)).toEqual([833, 833, 833]);
+    const kpis = (await request(t.app).get("/api/state")).body.kpis;
+    expect(kpis.owed).toBe(16640 - 150);
+
+    const other = await placeCallAfter(t, callId, "cus_05");
+    await tool(t, other, "cus_05", "mark_do_not_call", { reason: null });
+    await tool(t, other, "cus_05", "mark_do_not_call", { reason: null });
+    const after = (await request(t.app).get("/api/state")).body.kpis;
+    expect(after).toMatchObject({ optOuts: 1, escalations: 0 });
   });
 
   it("recalculates an existing plan when the late fee is waived afterwards", async () => {

@@ -210,3 +210,12 @@ describe("repository", () => {
     expect(repo.getCustomer("cus_01")!.dnc).toBe(1);
   });
 });
+
+describe("config", () => {
+  it("requires an explicit dial allowlist when a demo phone is set", async () => {
+    const { loadConfig } = await import("../src/config.js");
+    expect(() => loadConfig({ DEMO_PHONE_NUMBER: "+910000012345" })).toThrow(/ALLOWED_DIAL_NUMBERS/);
+    expect(() => loadConfig({ DEMO_PHONE_NUMBER: "+91XXXXXXXXXX", ALLOWED_DIAL_NUMBERS: "+91XXXXXXXXXX" })).toThrow(/E\.164/);
+    expect(loadConfig({ DEMO_PHONE_NUMBER: "+910000012345", ALLOWED_DIAL_NUMBERS: "+910000012345" }).allowedDialNumbers).toEqual(["+910000012345"]);
+  });
+});

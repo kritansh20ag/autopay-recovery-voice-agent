@@ -56,11 +56,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error(`Invalid environment:\n${issues}`);
   }
   const e = parsed.data;
-  const allowed = e.ALLOWED_DIAL_NUMBERS.length ? e.ALLOWED_DIAL_NUMBERS : e.DEMO_PHONE_NUMBER ? [e.DEMO_PHONE_NUMBER] : [];
+  if (e.DEMO_PHONE_NUMBER && !e.ALLOWED_DIAL_NUMBERS.length) {
+    throw new Error("Invalid environment:\n  ALLOWED_DIAL_NUMBERS: required when DEMO_PHONE_NUMBER is set (list the numbers you own, comma-separated)");
+  }
   return {
     retellApiKey: e.RETELL_API_KEY,
     demoPhoneNumber: e.DEMO_PHONE_NUMBER,
-    allowedDialNumbers: allowed,
+    allowedDialNumbers: e.ALLOWED_DIAL_NUMBERS,
     companyName: e.COMPANY_NAME,
     agentName: e.AGENT_NAME,
     llmModel: e.RETELL_LLM_MODEL,

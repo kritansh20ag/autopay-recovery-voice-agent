@@ -15,6 +15,7 @@ export function testConfig(overrides: Record<string, string> = {}) {
   return loadConfig({
     RETELL_API_KEY: API_KEY,
     DEMO_PHONE_NUMBER: DEMO_NUMBER,
+    ALLOWED_DIAL_NUMBERS: DEMO_NUMBER,
     PUBLIC_BASE_URL: "https://demo.example.test",
     ...overrides,
   });

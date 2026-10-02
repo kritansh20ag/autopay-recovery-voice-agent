@@ -45,8 +45,18 @@ export function customerIdFromCall(call: Pick<RetellCallPayload, "metadata" | "r
 
 const iso = (ms: number | undefined) => (typeof ms === "number" ? new Date(ms).toISOString() : undefined);
 
-export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload: RetellWebhookPayload): "handled" | "duplicate" | "ignored" {
+type WebhookOutcome = "handled" | "duplicate" | "ignored";
+type PendingEvent = Parameters<EventBus["publish"]>[0];
+
+export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload: RetellWebhookPayload): WebhookOutcome {
   const { repo, bus } = deps;
+  const events: PendingEvent[] = [];
+  const outcome = repo.transaction(() => applyWebhook(repo, payload, events));
+  for (const e of events) bus.publish(e);
+  return outcome;
+}
+
+function applyWebhook(repo: Repo, payload: RetellWebhookPayload, events: PendingEvent[]): WebhookOutcome {
   const c = payload.call;
   if (!c?.call_id) return "ignored";
 
@@ -62,7 +72,7 @@ export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload
   if (payload.event === "transcript_updated") {
     if (row.status === "ended") return "ignored";
     repo.updateCall(row.id, { transcript: c.transcript ?? row.transcript });
-    bus.publish({ type: "call.transcript", ...base, data: { utterances: (c.transcript_object ?? []).slice(-40) } });
+    events.push({ type: "call.transcript", ...base, data: { utterances: (c.transcript_object ?? []).slice(-40) } });
     return "handled";
   }
 
@@ -72,7 +82,7 @@ export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload
   switch (payload.event) {
     case "call_started":
       if (row.status !== "ended") repo.updateCall(row.id, { status: "ongoing", started_at: iso(c.start_timestamp) ?? repo.now() });
-      bus.publish({ type: "call.started", ...base });
+      events.push({ type: "call.started", ...base });
       break;
     case "call_ended": {
       repo.updateCall(row.id, {
@@ -86,7 +96,7 @@ export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload
         public_log_url: c.public_log_url ?? row.public_log_url,
       });
       const disposition = refreshDisposition(repo, row.id);
-      bus.publish({ type: "call.ended", ...base, data: { disposition, disconnection_reason: c.disconnection_reason } });
+      events.push({ type: "call.ended", ...base, data: { disposition, disconnection_reason: c.disconnection_reason } });
       break;
     }
     case "call_analyzed": {
@@ -100,7 +110,7 @@ export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload
         transcript: c.transcript ?? row.transcript,
       });
       const disposition = refreshDisposition(repo, row.id);
-      bus.publish({ type: "call.analyzed", ...base, data: { disposition, summary: a.call_summary } });
+      events.push({ type: "call.analyzed", ...base, data: { disposition, summary: a.call_summary } });
       break;
     }
   }

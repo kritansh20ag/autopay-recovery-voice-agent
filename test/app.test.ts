@@ -442,3 +442,22 @@ describe("campaign", () => {
     expect(t.providerCalls).toHaveLength(9);
   });
 });
+
+describe("webhook atomicity", () => {
+  it("does not swallow a retried webhook when processing failed the first time", async () => {
+    const t = makeApp();
+    const id = await placeCall(t, "cus_01");
+    const original = t.repo.updateCall.bind(t.repo);
+    let fail = true;
+    t.repo.updateCall = (callId, patch) => {
+      if (fail && patch.status === "ended") throw new Error("disk full");
+      return original(callId, patch);
+    };
+    const first = await webhook(t, "call_ended", retellCall(id, "cus_01", { disconnection_reason: "user_hangup" }));
+    expect(first.status).toBe(500);
+    fail = false;
+    const retry = await webhook(t, "call_ended", retellCall(id, "cus_01", { disconnection_reason: "user_hangup" }));
+    expect(retry.headers["x-webhook-outcome"]).toBe("handled");
+    expect(t.repo.getCall(id)!.status).toBe("ended");
+  });
+});

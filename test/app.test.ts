@@ -377,6 +377,14 @@ describe("dialer", () => {
     expect(t.providerCalls).toHaveLength(0);
   });
 
+  it("keeps the recording when call_analyzed arrives before call_ended", async () => {
+    const t = makeApp();
+    const id = await placeCall(t, "cus_01");
+    await webhook(t, "call_analyzed", retellCall(id, "cus_01", { recording_url: "https://rec.example/a.wav", call_analysis: { call_summary: "s" } }));
+    await webhook(t, "call_ended", retellCall(id, "cus_01", { disconnection_reason: "user_hangup" }));
+    expect(t.repo.getCall(id)).toMatchObject({ recording_url: "https://rec.example/a.wav", summary: "s", status: "ended" });
+  });
+
   it("maps unanswered calls to no_answer and voicemail", async () => {
     const t = makeApp();
     const a = await placeCall(t, "cus_04");

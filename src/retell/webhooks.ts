@@ -79,11 +79,11 @@ export function handleRetellWebhook(deps: { repo: Repo; bus: EventBus }, payload
         status: "ended",
         started_at: iso(c.start_timestamp) ?? row.started_at,
         ended_at: iso(c.end_timestamp) ?? repo.now(),
-        duration_ms: c.duration_ms ?? null,
-        disconnection_reason: c.disconnection_reason ?? null,
+        duration_ms: c.duration_ms ?? row.duration_ms,
+        disconnection_reason: c.disconnection_reason ?? row.disconnection_reason,
         transcript: c.transcript ?? row.transcript,
-        recording_url: c.recording_url ?? null,
-        public_log_url: c.public_log_url ?? null,
+        recording_url: c.recording_url ?? row.recording_url,
+        public_log_url: c.public_log_url ?? row.public_log_url,
       });
       const disposition = refreshDisposition(repo, row.id);
       bus.publish({ type: "call.ended", ...base, data: { disposition, disconnection_reason: c.disconnection_reason } });

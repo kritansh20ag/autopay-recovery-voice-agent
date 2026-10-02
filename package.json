@@ -4,12 +4,14 @@
   "private": true,
   "description": "Outbound AI voice agent (Retell) that recovers failed autopay payments, with a live dashboard, policy guardrails and a mock checkout.",
   "type": "module",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,magenta \"tsx watch src/server.ts\" \"vite --config web/vite.config.ts\"",
     "build": "vite build --config web/vite.config.ts",
-    "start": "tsx src/server.ts",
-    "live": "npm run build && concurrently -k -n api,tunnel -c blue,green \"tsx src/server.ts\" \"tsx scripts/tunnel.ts\"",
+    "start": "NODE_ENV=production tsx src/server.ts",
+    "live": "npm run build && NODE_ENV=production concurrently -k -n api,tunnel -c blue,green \"tsx src/server.ts\" \"tsx scripts/tunnel.ts\"",
     "seed": "tsx src/db/seed.ts",
     "provision": "tsx src/agent/provision.ts",
     "smoke:call": "tsx scripts/smoke-call.ts",

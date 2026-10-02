@@ -1,7 +1,6 @@
 import Retell from "retell-sdk";
 import { pathToFileURL } from "node:url";
 import { loadConfig, readProvisionedState, resolvePublicBaseUrl, writeProvisionedState, type AppConfig, type ProvisionedState } from "../config.js";
-import { spokenPhone } from "../calls/dialer.js";
 import { createRetell, describeProviderError } from "../retell/client.js";
 import { buildAgentParams, buildLlmParams } from "./agentConfig.js";
 
@@ -97,7 +96,7 @@ export async function provision(client: Retell, config: AppConfig, publicBaseUrl
     log(`Created Retell LLM ${llmId}`);
   }
 
-  const agentParams = buildAgentParams(config, { llmId, voiceId, publicBaseUrl, callbackNumber: spokenPhone(fromNumber) });
+  const agentParams = buildAgentParams(config, { llmId, voiceId, publicBaseUrl });
   let agent: Retell.AgentResponse | undefined;
   if (state.agentId) {
     try {

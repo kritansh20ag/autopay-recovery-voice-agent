@@ -8,8 +8,8 @@ export const PROMPT = readFileSync(new URL("./prompt.md", import.meta.url), "utf
 export const BEGIN_MESSAGE =
   "Hello, this is {{agent_name}}, an AI assistant calling from {{company_name}}. This call is recorded. Am I speaking with {{customer_full_name}}?";
 
-export function voicemailText(config: AppConfig, callbackNumber: string): string {
-  return `Hello, this is ${config.agentName} from ${config.companyName}. Please call us back at ${callbackNumber} at your convenience. Thank you.`;
+export function voicemailText(config: AppConfig): string {
+  return `Hello, this is ${config.agentName} from ${config.companyName} with a message for you. We will try you again soon, or you can reach us any time in the ${config.companyName} app. Thank you.`;
 }
 
 export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell.LlmCreateParams {
@@ -40,7 +40,6 @@ export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell
       company_name: config.companyName,
       customer_full_name: "the account holder",
       customer_first_name: "there",
-      callback_number: "the number we called from",
       today: new Date().toISOString().slice(0, 10),
       customer_timezone: "Asia/Kolkata",
       customer_id: "",
@@ -80,7 +79,7 @@ export const POST_CALL_ANALYSIS: NonNullable<Retell.AgentCreateParams["post_call
   { type: "string", name: "next_best_action", description: "One short sentence on what the collections team should do next." },
 ];
 
-export function buildAgentParams(config: AppConfig, input: { llmId: string; voiceId: string; publicBaseUrl: string; callbackNumber: string }): Retell.AgentCreateParams {
+export function buildAgentParams(config: AppConfig, input: { llmId: string; voiceId: string; publicBaseUrl: string }): Retell.AgentCreateParams {
   return {
     agent_name: `${config.companyName} autopay recovery`,
     response_engine: { type: "retell-llm", llm_id: input.llmId },
@@ -89,7 +88,7 @@ export function buildAgentParams(config: AppConfig, input: { llmId: string; voic
     timezone: "Asia/Kolkata",
     webhook_url: `${input.publicBaseUrl}/retell/webhook`,
     webhook_events: ["call_started", "call_ended", "call_analyzed", "transcript_updated"],
-    voicemail_option: { action: { type: "static_text", text: voicemailText(config, input.callbackNumber) } },
+    voicemail_option: { action: { type: "static_text", text: voicemailText(config) } },
     max_call_duration_ms: 300_000,
     end_call_after_silence_ms: 20_000,
     interruption_sensitivity: 0.8,

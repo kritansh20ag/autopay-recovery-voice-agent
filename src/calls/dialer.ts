@@ -45,11 +45,6 @@ export interface CampaignState {
 
 const DAY_MS = 86_400_000;
 
-export function spokenPhone(e164: string | undefined): string {
-  if (!e164) return "the number we called from";
-  return e164.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, "+1 $1 $2 $3");
-}
-
 export class Dialer {
   private campaign: CampaignState = { running: false, results: [] };
   private abort?: AbortController;
@@ -81,7 +76,7 @@ export class Dialer {
     });
   }
 
-  private dynamicVariables(customer: CustomerRow, binding: AgentBinding): Record<string, string> {
+  private dynamicVariables(customer: CustomerRow): Record<string, string> {
     const { config, repo } = this.deps;
     return {
       customer_id: customer.id,
@@ -89,7 +84,6 @@ export class Dialer {
       customer_full_name: customer.full_name,
       company_name: config.companyName,
       agent_name: config.agentName,
-      callback_number: spokenPhone(binding.fromNumber),
       today: localDate(repo.nowDate(), customer.timezone),
       customer_timezone: customer.timezone,
     };
@@ -137,7 +131,7 @@ export class Dialer {
         toNumber: config.demoPhoneNumber!,
         agentId: binding.agentId,
         agentVersion: binding.agentVersion,
-        dynamicVariables: this.dynamicVariables(customer, binding),
+        dynamicVariables: this.dynamicVariables(customer),
         metadata: { customerId: customer.id },
       });
       repo.insertCall({ id: callId, customer_id: customer.id, channel: "phone", status: "registered" });
@@ -166,7 +160,7 @@ export class Dialer {
       const session = await provider.createWebCall({
         agentId: binding.agentId,
         agentVersion: binding.agentVersion,
-        dynamicVariables: this.dynamicVariables(customer, binding),
+        dynamicVariables: this.dynamicVariables(customer),
         metadata: { customerId: customer.id },
       });
       repo.insertCall({ id: session.callId, customer_id: customer.id, channel: "web", status: "registered" });

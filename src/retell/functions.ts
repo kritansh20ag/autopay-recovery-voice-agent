@@ -74,7 +74,7 @@ const handlers: Handlers = {
     if (locked) {
       return fail(
         "VERIFICATION_LOCKED",
-        "Do not share any account information. Say you could not verify the details, that they can call back on the number we called from, then end the call.",
+        "Do not share any account information. Say you could not verify the details and that they can reach us in the app or wait for a call back, then end the call.",
         { verified: false, attempts_remaining: 0 },
       );
     }

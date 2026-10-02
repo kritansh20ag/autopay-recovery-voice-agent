@@ -178,6 +178,15 @@ export class Dialer {
     }
   }
 
+  hasLiveCall(): boolean {
+    const active = this.deps.repo.activeCall();
+    return this.placing || (!!active && this.deps.repo.nowDate().getTime() - Date.parse(active.created_at) < this.timings.staleCallMs);
+  }
+
+  clearCampaignResults(): void {
+    if (!this.campaign.running) this.campaign = { running: false, results: [] };
+  }
+
   campaignState(): CampaignState {
     return structuredClone(this.campaign);
   }

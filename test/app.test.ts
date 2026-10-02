@@ -370,6 +370,15 @@ describe("dialer", () => {
     expect(t.repo.getCall(first)).toMatchObject({ status: "ended", disconnection_reason: "user_hangup", disposition: "not_verified" });
   });
 
+  it("refuses to reset the demo while a call is live", async () => {
+    const t = makeApp();
+    const id = await placeCall(t, "cus_01");
+    expect((await request(t.app).post("/api/demo/reset").send({})).status).toBe(409);
+    await webhook(t, "call_ended", retellCall(id, "cus_01", { disconnection_reason: "user_hangup" }));
+    expect((await request(t.app).post("/api/demo/reset").send({})).status).toBe(200);
+    expect(t.repo.listCalls()).toHaveLength(0);
+  });
+
   it("refuses to dial outside calling hours", async () => {
     const t = makeApp({ at: new Date("2026-10-02T16:00:00Z") });
     const res = await request(t.app).post("/api/customers/cus_01/call").send({});

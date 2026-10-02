@@ -141,7 +141,12 @@ export function createApp(deps: AppDeps) {
       res.status(409).json({ error: "Stop the campaign first." });
       return;
     }
+    if (dialer.hasLiveCall()) {
+      res.status(409).json({ error: "A call is still in progress. Reset after it ends." });
+      return;
+    }
     seedDatabase(repo);
+    dialer.clearCampaignResults();
     bus.publish({ type: "demo.reset" });
     res.json({ ok: true });
   });

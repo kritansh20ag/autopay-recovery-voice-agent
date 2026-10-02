@@ -175,6 +175,11 @@ export function createApp(deps: AppDeps) {
     res.status(c.status).type("html").send(renderPayResult({ company: config.companyName, title: c.title, detail: c.detail, ok: c.ok }));
   };
 
+  pub.use("/pay", (_req, res, next) => {
+    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff" });
+    next();
+  });
+
   pub.get("/pay/:token", (req, res) => {
     const problem = payProblem(req.params.token);
     if (problem) {

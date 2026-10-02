@@ -311,6 +311,8 @@ describe("end-to-end recovery", () => {
     const t = makeApp();
     const unknown = await request(t.app).get("/pay/nope");
     expect(unknown.status).toBe(404);
+    expect(unknown.headers["cache-control"]).toBe("no-store");
+    expect(unknown.headers["x-frame-options"]).toBe("DENY");
     expect(unknown.text).toContain("Link not found");
 
     const callId = await placeCall(t, "cus_05");

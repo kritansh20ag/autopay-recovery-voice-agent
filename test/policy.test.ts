@@ -155,3 +155,13 @@ describe("tool schemas", () => {
     expect(amount.anyOf?.some((s) => s.type === "null")).toBe(true);
   });
 });
+
+describe("provisioning helpers", () => {
+  it("restricts outbound countries to the allowlisted numbers", async () => {
+    const { outboundCountries } = await import("../src/agent/provision.js");
+    const { testConfig } = await import("./helpers.js");
+    expect(outboundCountries(testConfig())).toEqual(["IN"]);
+    expect(outboundCountries(testConfig({ ALLOWED_DIAL_NUMBERS: "+910000012345,+14155550123" }))).toEqual(["IN", "US", "CA"]);
+    expect(() => outboundCountries(testConfig({ ALLOWED_DIAL_NUMBERS: "+81312345678" }))).toThrow(/Unknown country/);
+  });
+});

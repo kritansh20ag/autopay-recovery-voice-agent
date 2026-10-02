@@ -9,10 +9,29 @@ type Log = (msg: string) => void;
 
 const isNotFound = (err: unknown) => err instanceof Retell.APIError && err.status === 404;
 
+const CALLING_CODES: Array<[string, string[]]> = [
+  ["+971", ["AE"]],
+  ["+91", ["IN"]],
+  ["+65", ["SG"]],
+  ["+61", ["AU"]],
+  ["+49", ["DE"]],
+  ["+44", ["GB"]],
+  ["+1", ["US", "CA"]],
+];
+
 export function outboundCountries(config: AppConfig): string[] {
-  const countries = new Set<string>(["US"]);
-  for (const n of config.allowedDialNumbers) if (n.startsWith("+91")) countries.add("IN");
+  const countries = new Set<string>();
+  for (const n of config.allowedDialNumbers) {
+    const match = CALLING_CODES.find(([code]) => n.startsWith(code));
+    if (!match) throw new Error(`Unknown country for ${n}; add its calling code to CALLING_CODES in src/agent/provision.ts`);
+    for (const c of match[1]) countries.add(c);
+  }
+  if (!countries.size) throw new Error("ALLOWED_DIAL_NUMBERS is empty; nothing could be dialled.");
   return [...countries];
+}
+
+export function numberNickname(config: AppConfig): string {
+  return `${config.companyName} autopay demo`;
 }
 
 export async function ensureNumber(client: Retell, config: AppConfig, log: Log): Promise<string> {
@@ -26,7 +45,7 @@ export async function ensureNumber(client: Retell, config: AppConfig, log: Log):
       log(`Number ${state.fromNumber} no longer exists on this account; buying a new one.`);
     }
   }
-  const existing = (await client.phoneNumber.list()).items?.[0];
+  const existing = (await client.phoneNumber.list()).items?.find((n) => n.nickname === numberNickname(config));
   if (existing) {
     log(`Reusing existing Retell number ${existing.phone_number}`);
     writeProvisionedState({ fromNumber: existing.phone_number });
@@ -35,7 +54,7 @@ export async function ensureNumber(client: Retell, config: AppConfig, log: Log):
   log(`Buying a US number${config.areaCode ? ` in area code ${config.areaCode}` : ""} (about $2/month)...`);
   const bought = await client.phoneNumber.create({
     ...(config.areaCode ? { area_code: config.areaCode } : {}),
-    nickname: `${config.companyName} autopay demo`,
+    nickname: numberNickname(config),
     allowed_outbound_country_list: outboundCountries(config),
   });
   writeProvisionedState({ fromNumber: bought.phone_number });

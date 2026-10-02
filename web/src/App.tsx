@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, money, type AppEvent, type State } from "./api";
+import { api, money, type AppEvent, type CallDetail, type State } from "./api";
 import { CallDrawer } from "./components/CallDrawer";
 import { CustomerTable } from "./components/CustomerTable";
 import { Kpis } from "./components/Kpis";
@@ -16,6 +16,7 @@ export function App() {
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const refreshTimer = useRef<number | undefined>(undefined);
+  const hydrated = useRef(false);
   const nameOf = useRef(new Map<string, string>());
 
   const notify = useCallback((msg: string) => {
@@ -31,6 +32,12 @@ export function App() {
       nameOf.current = new Map(s.customers.map((c) => [c.id, c.fullName]));
       setState(s);
       setVersion((v) => v + 1);
+      const latest = s.calls[0];
+      if (!hydrated.current && latest) {
+        hydrated.current = true;
+        const detail = await api.call(latest.id);
+        setLive((cur) => cur ?? liveFromDetail(detail));
+      }
     }, 200);
   }, []);
 
@@ -176,6 +183,24 @@ export function App() {
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
+}
+
+function liveFromDetail(d: CallDetail): LiveCall {
+  const utterances = (d.transcript ?? "")
+    .split("\n")
+    .map((line) => /^(Agent|User):\s*(.*)$/.exec(line))
+    .filter((m): m is RegExpExecArray => !!m)
+    .map((m) => ({ role: m[1] === "Agent" ? "agent" : "user", content: m[2] ?? "" }));
+  return {
+    callId: d.id,
+    customerId: d.customerId,
+    customerName: d.customerName ?? "Customer",
+    channel: d.channel,
+    status: d.status,
+    disposition: d.disposition ?? undefined,
+    utterances,
+    tools: d.tools.map((t) => ({ name: t.name, ok: t.ok, args: t.args, result: t.result, at: t.at })),
+  };
 }
 
 function applyEvent(cur: LiveCall | undefined, e: AppEvent, name: string): LiveCall | undefined {

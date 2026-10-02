@@ -287,6 +287,13 @@ export class Repo {
     update(this.db, "payment_links", "token", token, patch);
   }
 
+  pendingPartialLinkAmount(invoiceId: string, nowIso: string): number {
+    const r = this.db
+      .prepare("SELECT COALESCE(SUM(amount), 0) AS n FROM payment_links WHERE invoice_id = ? AND purpose = 'partial' AND status = 'sent' AND expires_at > ?")
+      .get(invoiceId, nowIso) as { n: number };
+    return r.n;
+  }
+
   expireOpenLinks(invoiceId: string): number {
     return this.db.prepare("UPDATE payment_links SET status = 'expired' WHERE invoice_id = ? AND status = 'sent'").run(invoiceId).changes;
   }

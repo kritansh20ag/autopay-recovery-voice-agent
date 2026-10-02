@@ -225,6 +225,18 @@ describe("end-to-end recovery", () => {
     expect(await tool(t, callId, "cus_10", "record_promise_to_pay", { promise_date: "2026-10-12" })).toMatchObject({ ok: true, amount: 1499 });
   });
 
+  it("promise after an unpaid part-payment link covers only the rest", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_10");
+    await tool(t, callId, "cus_10", "verify_identity", verifyArgs(t, "cus_10"));
+    await tool(t, callId, "cus_10", "send_payment_link", { purpose: "partial", amount: 1000 });
+    expect(await tool(t, callId, "cus_10", "record_promise_to_pay", { promise_date: "2026-10-12", amount: null })).toMatchObject({
+      ok: true,
+      amount: 1499,
+      pending_link_amount: 1000,
+    });
+  });
+
   it("already paid: pauses collection and blocks the next dial", async () => {
     const t = makeApp();
     const callId = await placeCall(t, "cus_07");

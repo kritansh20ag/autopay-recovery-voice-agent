@@ -169,7 +169,9 @@ const handlers: Handlers = {
     const check = validatePromiseDate(args.promise_date, ctx.today);
     if (!check.ok) return fail(check.error, check.detail);
     const balance = balanceDue(ctx.invoice);
-    const amount = args.amount ?? balance;
+    const pending = Math.min(balance, ctx.repo.pendingPartialLinkAmount(ctx.invoice.id, ctx.repo.now()));
+    const amount = args.amount ?? balance - pending;
+    if (amount < 1) return fail("NOTHING_LEFT_TO_PROMISE", "The part-payment link already covers the full balance. Ask them to complete the link instead.");
     if (amount > balance) return fail("AMOUNT_TOO_HIGH", `The remaining balance is only ${spokenRupees(balance)}.`);
     ctx.repo.insertPromise({ customer_id: ctx.customer.id, invoice_id: ctx.invoice.id, call_id: ctx.call.id, promise_date: args.promise_date, amount });
     return {
@@ -178,6 +180,7 @@ const handlers: Handlers = {
       days_from_today: daysBetween(ctx.today, args.promise_date),
       amount,
       amount_spoken: spokenRupees(amount),
+      ...(pending ? { pending_link_amount: pending, note: `This excludes the ${spokenRupees(pending)} part-payment link that is still open.` } : {}),
       instruction: "Confirm the date and amount back to the customer and mention a reminder will be sent the day before.",
     };
   },

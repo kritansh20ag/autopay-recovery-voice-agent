@@ -56,6 +56,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error(`Invalid environment:\n${issues}`);
   }
   const e = parsed.data;
+  if (e.CALLING_WINDOW_START_HOUR >= e.CALLING_WINDOW_END_HOUR) {
+    throw new Error("Invalid environment:\n  CALLING_WINDOW_START_HOUR must be earlier than CALLING_WINDOW_END_HOUR");
+  }
   if (e.DEMO_PHONE_NUMBER && !e.ALLOWED_DIAL_NUMBERS.length) {
     throw new Error("Invalid environment:\n  ALLOWED_DIAL_NUMBERS: required when DEMO_PHONE_NUMBER is set (list the numbers you own, comma-separated)");
   }

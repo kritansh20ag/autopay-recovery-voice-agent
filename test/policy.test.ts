@@ -57,7 +57,8 @@ describe("evaluateDial", () => {
     expect(evaluateDial(ctx({ now: new Date("2026-10-02T02:00:00Z") }))).toMatchObject({ code: "OUTSIDE_CALLING_HOURS" });
     expect(evaluateDial(ctx({ now: new Date("2026-10-02T13:30:00Z") }))).toMatchObject({ code: "OUTSIDE_CALLING_HOURS" });
     expect(evaluateDial(ctx({ now: new Date("2026-10-02T02:30:00Z") }))).toEqual({ allowed: true });
-    expect(evaluateDial(ctx({ now: new Date("2026-10-02T13:29:00Z") }))).toEqual({ allowed: true });
+    expect(evaluateDial(ctx({ now: new Date("2026-10-02T13:25:00Z") }))).toEqual({ allowed: true });
+    expect(evaluateDial(ctx({ now: new Date("2026-10-02T13:26:00Z") }))).toMatchObject({ code: "OUTSIDE_CALLING_HOURS" });
   });
 
   it("caps attempts at 7 in 7 days and waits 7 days after a conversation", () => {
@@ -217,5 +218,6 @@ describe("config", () => {
     expect(() => loadConfig({ DEMO_PHONE_NUMBER: "+910000012345" })).toThrow(/ALLOWED_DIAL_NUMBERS/);
     expect(() => loadConfig({ DEMO_PHONE_NUMBER: "+91XXXXXXXXXX", ALLOWED_DIAL_NUMBERS: "+91XXXXXXXXXX" })).toThrow(/E\.164/);
     expect(loadConfig({ DEMO_PHONE_NUMBER: "+910000012345", ALLOWED_DIAL_NUMBERS: "+910000012345" }).allowedDialNumbers).toEqual(["+910000012345"]);
+    expect(() => loadConfig({ CALLING_WINDOW_START_HOUR: "19", CALLING_WINDOW_END_HOUR: "8" })).toThrow(/earlier than/);
   });
 });

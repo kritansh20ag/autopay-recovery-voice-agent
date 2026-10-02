@@ -1,9 +1,10 @@
 import type { CustomerRow, InvoiceRow } from "../db/db.js";
 import { isCollectable } from "./offers.js";
-import { localParts, withinWindow } from "./time.js";
+import { localParts } from "./time.js";
 
 export const MAX_ATTEMPTS_7D = 7;
 export const QUIET_PERIOD_DAYS = 7;
+export const MAX_CALL_MINUTES = 5;
 const DAY_MS = 86_400_000;
 
 export type BlockCode =
@@ -50,11 +51,12 @@ export function evaluateDial(ctx: DialContext): DialDecision {
   if (ctx.callInProgress) return block("CALL_IN_PROGRESS", "Another call to the demo phone is still in progress.");
 
   const local = localParts(ctx.now, ctx.customer.timezone);
-  if (!withinWindow(local.hour, ctx.window)) {
+  const minuteOfDay = local.hour * 60 + local.minute;
+  if (minuteOfDay < ctx.window.startHour * 60 || minuteOfDay + MAX_CALL_MINUTES > ctx.window.endHour * 60) {
     const pad = (h: number) => `${String(h).padStart(2, "0")}:00`;
     return block(
       "OUTSIDE_CALLING_HOURS",
-      `Local time for the customer is ${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")} (${ctx.customer.timezone}); calls are allowed ${pad(ctx.window.startHour)}–${pad(ctx.window.endHour)}.`,
+      `Local time for the customer is ${String(local.hour).padStart(2, "0")}:${String(local.minute).padStart(2, "0")} (${ctx.customer.timezone}); calls must start ${pad(ctx.window.startHour)}–${pad(ctx.window.endHour)} and finish before the window closes.`,
     );
   }
   if (ctx.dialedLast7d >= MAX_ATTEMPTS_7D) {

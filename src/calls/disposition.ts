@@ -20,7 +20,7 @@ export type Disposition =
   | "busy"
   | "failed";
 
-const NO_ANSWER = new Set(["dial_no_answer", "user_declined", "registered_call_timeout", "error_user_not_joined"]);
+const NO_ANSWER = new Set(["dial_no_answer", "user_declined", "registered_call_timeout", "error_user_not_joined", "ivr_reached"]);
 const FAILED = new Set([
   "dial_failed",
   "invalid_destination",

@@ -65,6 +65,10 @@ export function retellVoiceProvider(client: Retell): VoiceProvider {
   };
 }
 
+export function isAccountLevelError(err: unknown): boolean {
+  return err instanceof Retell.APIError && (err.status === 401 || err.status === 402 || err.status === 403);
+}
+
 export function describeProviderError(err: unknown): string {
   if (err instanceof Retell.APIError) {
     const body = err.error ? JSON.stringify(err.error) : err.message;

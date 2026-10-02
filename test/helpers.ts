@@ -38,12 +38,13 @@ export function makeRepo(at: Date = NOON_IST) {
 
 export type DialHook = (callId: string, req: Parameters<VoiceProvider["createPhoneCall"]>[0]) => void;
 
-export function fakeProvider(opts: { dialDelayMs?: number; onDial?: DialHook } = {}) {
+export function fakeProvider(opts: { dialDelayMs?: number; onDial?: DialHook; dialError?: unknown } = {}) {
   let n = 0;
   const calls: Array<Parameters<VoiceProvider["createPhoneCall"]>[0]> = [];
   const provider: VoiceProvider = {
     async createPhoneCall(req) {
       calls.push(req);
+      if (opts.dialError) throw opts.dialError;
       const callId = `call_fake_${++n}`;
       if (opts.dialDelayMs) await new Promise((r) => setTimeout(r, opts.dialDelayMs));
       opts.onDial?.(callId, req);
@@ -62,14 +63,14 @@ export function fakeProvider(opts: { dialDelayMs?: number; onDial?: DialHook } =
 export const silentNotifier: Notifier = { sendPaymentLink: async () => ["sms"] };
 
 export function makeApp(
-  opts: { at?: Date; env?: Record<string, string>; dialDelayMs?: number; onDial?: DialHook } = {},
+  opts: { at?: Date; env?: Record<string, string>; dialDelayMs?: number; onDial?: DialHook; dialError?: unknown } = {},
 ) {
   const { repo, clock } = makeRepo(opts.at);
   const config = testConfig(opts.env);
   const bus = new EventBus();
   const events: AppEvent[] = [];
   bus.subscribe((e) => events.push(e));
-  const { provider, calls } = fakeProvider({ dialDelayMs: opts.dialDelayMs, onDial: opts.onDial });
+  const { provider, calls } = fakeProvider({ dialDelayMs: opts.dialDelayMs, onDial: opts.onDial, dialError: opts.dialError });
   const { app, publicApp, dialer } = createApp({
     repo,
     config,

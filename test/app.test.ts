@@ -1,5 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import Retell from "retell-sdk";
 import { handleRetellWebhook } from "../src/retell/webhooks.js";
 import { makeApp, retellCall, signed } from "./helpers.js";
 
@@ -445,6 +446,14 @@ describe("campaign", () => {
     expect(await waitUntil(() => t.providerCalls.length >= 2, 1500)).toBe(true);
     t.dialer.stopCampaign();
     expect(t.dialer.campaignState().results[0]).toMatchObject({ customerId: "cus_01", outcome: "failed" });
+  });
+
+  it("stops at the first account-level provider error instead of hammering Retell", async () => {
+    const t = makeApp({ dialError: Retell.APIError.generate(401, { message: "Invalid API Key." }, undefined, new Headers()) });
+    t.dialer.startCampaign();
+    expect(await waitUntil(() => !t.dialer.campaignState().running, 1000)).toBe(true);
+    expect(t.providerCalls).toHaveLength(1);
+    expect(t.dialer.campaignState().results).toEqual([expect.objectContaining({ customerId: "cus_01", outcome: "PROVIDER_ERROR" })]);
   });
 
   it("dials eligible customers one at a time and records blocked ones", async () => {

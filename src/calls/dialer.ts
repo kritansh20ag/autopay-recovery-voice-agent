@@ -4,7 +4,7 @@ import type { CustomerRow, Repo } from "../db/db.js";
 import type { EventBus } from "../events/bus.js";
 import { evaluateDial, evaluateWebCall, type DialDecision } from "../policy/dialPolicy.js";
 import { DAY_MS, localDate } from "../policy/time.js";
-import { describeProviderError, type VoiceProvider, type WebCallSession } from "../retell/client.js";
+import { describeProviderError, isAccountLevelError, type VoiceProvider, type WebCallSession } from "../retell/client.js";
 import { handleRetellWebhook } from "../retell/webhooks.js";
 
 export interface AgentBinding {
@@ -33,7 +33,7 @@ export interface DialerTimings {
 const DEFAULT_TIMINGS: DialerTimings = { staleCallMs: 6 * 60_000, callWaitMs: 7 * 60_000, interCallPauseMs: 5000, reconcileAfterMs: 90_000 };
 const TERMINAL = new Set(["ended", "error", "not_connected"]);
 
-export type DialResult = { ok: true; callId: string } | { ok: false; code: string; reason: string };
+export type DialResult = { ok: true; callId: string } | { ok: false; code: string; reason: string; fatal?: boolean };
 
 export interface CampaignState {
   running: boolean;
@@ -142,7 +142,7 @@ export class Dialer {
       const reason = describeProviderError(err);
       repo.updateDialAttempt(attemptId, { result: "error", block_code: "PROVIDER_ERROR", block_reason: reason });
       bus.publish({ type: "dial.failed", customerId: customer.id, data: { reason } });
-      return { ok: false, code: "PROVIDER_ERROR", reason };
+      return { ok: false, code: "PROVIDER_ERROR", reason, fatal: isAccountLevelError(err) };
     } finally {
       this.placing = false;
     }
@@ -217,7 +217,7 @@ export class Dialer {
       if (!result.ok) {
         this.campaign.results.push({ customerId: customer.id, outcome: result.code, detail: result.reason });
         this.publishCampaign();
-        if (result.code === "NOT_PROVISIONED") return;
+        if (result.code === "NOT_PROVISIONED" || result.fatal) return;
         continue;
       }
       this.campaign.currentCallId = result.callId;

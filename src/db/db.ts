@@ -170,9 +170,24 @@ export interface EscalationRow {
 
 type Patch<T> = Partial<Omit<T, "id">>;
 
+const columnCache = new WeakMap<DB, Map<string, Set<string>>>();
+
+function columnsOf(db: DB, table: string): Set<string> {
+  let tables = columnCache.get(db);
+  if (!tables) columnCache.set(db, (tables = new Map()));
+  let cols = tables.get(table);
+  if (!cols) {
+    cols = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name));
+    tables.set(table, cols);
+  }
+  return cols;
+}
+
 function update<T>(db: DB, table: string, key: string, id: string | number, patch: Patch<T>): void {
   const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (!entries.length) return;
+  const cols = columnsOf(db, table);
+  for (const [k] of entries) if (!cols.has(k)) throw new Error(`Unknown column ${table}.${k}`);
   const sets = entries.map(([k]) => `${k} = @${k}`).join(", ");
   db.prepare(`UPDATE ${table} SET ${sets} WHERE ${key} = @__id`).run({ ...Object.fromEntries(entries), __id: id });
 }

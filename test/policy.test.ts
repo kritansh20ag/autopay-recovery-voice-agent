@@ -201,3 +201,12 @@ describe("agent configuration", () => {
     expect(JSON.stringify(llm.general_tools)).not.toContain("[[");
   });
 });
+
+describe("repository", () => {
+  it("refuses to update columns that do not exist", () => {
+    const { repo } = makeRepo();
+    expect(() => repo.updateCustomer("cus_01", { "dnc = 1 --": 1 } as never)).toThrow(/Unknown column/);
+    repo.updateCustomer("cus_01", { dnc: 1 });
+    expect(repo.getCustomer("cus_01")!.dnc).toBe(1);
+  });
+});

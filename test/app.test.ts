@@ -96,6 +96,16 @@ describe("verification gate", () => {
     expect(t.repo.getCustomer("cus_02")!.dnc).toBe(1);
   });
 
+  it("refuses a signed body replayed against a different tool URL", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_08");
+    await tool(t, callId, "cus_08", "verify_identity", verifyArgs(t, "cus_08"));
+    const { raw, signature } = await signed({ name: "get_account_summary", call: retellCall(callId, "cus_08"), args: {} });
+    const res = await request(t.app).post("/retell/functions/waive_late_fee").set("Content-Type", "application/json").set("X-Retell-Signature", signature).send(raw);
+    expect(res.status).toBe(400);
+    expect(t.repo.invoiceForCustomer("cus_08")!.late_fee_waived).toBe(0);
+  });
+
   it("rejects malformed arguments without crashing", async () => {
     const t = makeApp();
     const callId = await placeCall(t, "cus_02");

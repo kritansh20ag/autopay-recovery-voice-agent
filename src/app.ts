@@ -68,6 +68,10 @@ export function createApp(deps: AppDeps) {
       res.status(400).json({ ok: false, error: "MISSING_CALL" });
       return;
     }
+    if (body.name !== undefined && body.name !== req.params.name) {
+      res.status(400).json({ ok: false, error: "TOOL_NAME_MISMATCH" });
+      return;
+    }
     const result = await executeTool(
       { repo, bus, config, notifier, publicBaseUrl: deps.publicBaseUrl },
       {

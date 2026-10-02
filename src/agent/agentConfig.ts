@@ -23,7 +23,7 @@ export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell
     speak_during_execution: false,
     speak_after_execution: true,
     timeout_ms: 10_000,
-    max_retry: 1,
+    max_retry: 0,
   }));
   tools.push({ type: "end_call", name: "end_call", description: "End the call after the closing line, or when the flow says to end it." });
 

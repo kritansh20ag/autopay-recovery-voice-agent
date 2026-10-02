@@ -1,4 +1,4 @@
-import express, { type Request, type Response } from "express";
+import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import type { AppConfig } from "./config.js";
@@ -30,22 +30,37 @@ export interface AppDeps {
 
 const TEST_CARD = "4242424242424242";
 
+const requireJsonPosts: RequestHandler = (req, res, next) => {
+  if (req.method !== "GET" && !req.is("application/json")) {
+    res.status(415).json({ error: "Content-Type must be application/json" });
+    return;
+  }
+  next();
+};
+
+const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  const status = typeof err?.status === "number" ? err.status : 500;
+  if (status >= 500) console.error("[api]", err);
+  res.status(status).json({ error: status < 500 && err?.expose ? String(err.message) : "internal error" });
+};
+
 export function createApp(deps: AppDeps) {
   const { repo, config } = deps;
   const bus = deps.bus ?? new EventBus();
   const notifier = deps.notifier ?? createNotifier(repo, config);
   const dialer = new Dialer({ repo, bus, config, provider: deps.provider, binding: deps.binding });
+  const pub = express.Router();
   const app = express();
   app.disable("x-powered-by");
 
   const retellRaw = [express.raw({ type: "*/*", limit: "2mb" }), retellSignatureGuard(config.retellApiKey, config.verifySignatures)];
 
-  app.post("/retell/webhook", ...retellRaw, (req: Request, res: Response) => {
+  pub.post("/retell/webhook", ...retellRaw, (req: Request, res: Response) => {
     const outcome = handleRetellWebhook({ repo, bus }, req.body as RetellWebhookPayload);
     res.status(204).set("X-Webhook-Outcome", outcome).end();
   });
 
-  app.post("/retell/functions/:name", ...retellRaw, async (req: Request<{ name: string }>, res: Response) => {
+  pub.post("/retell/functions/:name", ...retellRaw, async (req: Request<{ name: string }>, res: Response) => {
     const body = req.body as { name?: string; call?: RetellCallPayload; args?: unknown };
     const callId = body.call?.call_id;
     if (!callId) {
@@ -65,7 +80,12 @@ export function createApp(deps: AppDeps) {
     res.json(result);
   });
 
-  app.use("/api", express.json({ limit: "100kb" }));
+  pub.get("/health", (_req, res) => {
+    res.json({ ok: true });
+  });
+
+  app.use(pub);
+  app.use("/api", requireJsonPosts, express.json({ limit: "100kb" }));
 
   app.get("/api/state", (_req, res) => {
     res.json(buildState(repo, config, dialer, { provisioned: !!deps.binding()?.fromNumber, publicBaseUrl: deps.publicBaseUrl() }));
@@ -110,11 +130,7 @@ export function createApp(deps: AppDeps) {
 
   app.get("/api/events", bus.sseHandler());
 
-  app.get("/health", (_req, res) => {
-    res.json({ ok: true });
-  });
-
-  app.get("/pay/:token", (req, res) => {
+  pub.get("/pay/:token", (req, res) => {
     const link = repo.getLink(req.params.token);
     if (!link) {
       res.status(404).type("html").send(renderPayResult({ company: config.companyName, title: "Link not found", detail: "This payment link is invalid.", ok: false }));
@@ -137,7 +153,7 @@ export function createApp(deps: AppDeps) {
     res.type("html").send(renderPayPage({ company: config.companyName, customer, invoice, link }));
   });
 
-  app.post("/pay/:token", express.urlencoded({ extended: false, limit: "10kb" }), (req, res) => {
+  pub.post("/pay/:token", express.urlencoded({ extended: false, limit: "10kb" }), (req, res) => {
     const token = req.params.token;
     const link = repo.getLink(token);
     const method = req.body?.method === "upi" ? "upi" : "card";
@@ -188,6 +204,15 @@ export function createApp(deps: AppDeps) {
     app.use(express.static(dist, { index: "index.html" }));
     app.get(/^\/(?!api|retell|pay|health).*/, (_req, res) => res.sendFile(path.join(dist, "index.html")));
   }
+  app.use(errorHandler);
 
-  return { app, bus, dialer };
+  const publicApp = express();
+  publicApp.disable("x-powered-by");
+  publicApp.use(pub);
+  publicApp.use((_req, res) => {
+    res.status(404).json({ error: "not found" });
+  });
+  publicApp.use(errorHandler);
+
+  return { app, publicApp, bus, dialer };
 }

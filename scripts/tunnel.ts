@@ -18,7 +18,7 @@ async function waitForHealth(baseUrl: string, timeoutMs: number): Promise<boolea
   return false;
 }
 
-const child = spawn("cloudflared", ["tunnel", "--no-autoupdate", "--url", `http://localhost:${config.port}`], {
+const child = spawn("cloudflared", ["tunnel", "--no-autoupdate", "--url", `http://127.0.0.1:${config.publicPort}`], {
   stdio: ["ignore", "pipe", "pipe"],
 });
 

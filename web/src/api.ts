@@ -22,14 +22,16 @@ async function json<T>(res: Response): Promise<T> {
   return body;
 }
 
+const post = (url: string) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+
 export const api = {
   state: () => fetch("/api/state").then((r) => json<State>(r)),
   call: (id: string) => fetch(`/api/calls/${id}`).then((r) => json<CallDetail>(r)),
-  dial: (customerId: string) => fetch(`/api/customers/${customerId}/call`, { method: "POST" }).then((r) => json<{ ok: true; callId: string } | ApiFailure>(r)),
-  webCall: (customerId: string) => fetch(`/api/customers/${customerId}/web-call`, { method: "POST" }).then((r) => json<WebCallStart | ApiFailure>(r)),
-  startCampaign: () => fetch("/api/campaign/start", { method: "POST" }).then((r) => json<State["campaign"]>(r)),
-  stopCampaign: () => fetch("/api/campaign/stop", { method: "POST" }).then((r) => json<State["campaign"]>(r)),
-  reset: () => fetch("/api/demo/reset", { method: "POST" }).then((r) => json<{ ok?: boolean; error?: string }>(r)),
+  dial: (customerId: string) => post(`/api/customers/${customerId}/call`).then((r) => json<{ ok: true; callId: string } | ApiFailure>(r)),
+  webCall: (customerId: string) => post(`/api/customers/${customerId}/web-call`).then((r) => json<WebCallStart | ApiFailure>(r)),
+  startCampaign: () => post("/api/campaign/start").then((r) => json<State["campaign"]>(r)),
+  stopCampaign: () => post("/api/campaign/stop").then((r) => json<State["campaign"]>(r)),
+  reset: () => post("/api/demo/reset").then((r) => json<{ ok?: boolean; error?: string }>(r)),
 };
 
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });

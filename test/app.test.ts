@@ -17,7 +17,7 @@ async function webhook(t: App, event: string, call: Record<string, unknown>) {
 }
 
 async function placeCall(t: App, customerId: string) {
-  const res = await request(t.app).post(`/api/customers/${customerId}/call`);
+  const res = await request(t.app).post(`/api/customers/${customerId}/call`).send({});
   expect(res.status).toBe(201);
   return res.body.callId as string;
 }
@@ -37,6 +37,33 @@ describe("Retell signature guard", () => {
       (await request(t.app).post("/retell/functions/get_account_summary").set("Content-Type", "application/json").set("X-Retell-Signature", signature).send(body)).status,
     ).toBe(401);
     expect((await request(t.app).post("/retell/webhook").set("Content-Type", "application/json").send(body)).status).toBe(401);
+  });
+});
+
+describe("public listener", () => {
+  it("exposes only Retell, checkout and health routes", async () => {
+    const t = makeApp();
+    expect((await request(t.publicApp).get("/health")).status).toBe(200);
+    expect((await request(t.publicApp).get("/api/state")).status).toBe(404);
+    expect((await request(t.publicApp).get("/api/events")).status).toBe(404);
+    expect((await request(t.publicApp).post("/api/customers/cus_01/call").send({})).status).toBe(404);
+    expect((await request(t.publicApp).post("/api/demo/reset").send({})).status).toBe(404);
+    expect((await request(t.publicApp).get("/")).status).toBe(404);
+    expect(t.providerCalls).toHaveLength(0);
+  });
+
+  it("rejects dashboard POSTs that are not JSON, so cross-site forms cannot trigger dials", async () => {
+    const t = makeApp();
+    const res = await request(t.app).post("/api/customers/cus_01/call").type("form").send("x=1");
+    expect(res.status).toBe(415);
+    expect(t.providerCalls).toHaveLength(0);
+  });
+
+  it("returns JSON errors without stack traces", async () => {
+    const t = makeApp();
+    const res = await request(t.app).post("/api/campaign/start").set("Content-Type", "application/json").send("{bad json");
+    expect(res.status).toBe(400);
+    expect(res.text).not.toMatch(/at .*\.js|node_modules/);
   });
 });
 
@@ -179,7 +206,7 @@ describe("end-to-end recovery", () => {
     const callId = await placeCall(t, "cus_05");
     expect(await tool(t, callId, "cus_05", "mark_do_not_call")).toMatchObject({ ok: true });
     await webhook(t, "call_ended", retellCall(callId, "cus_05", { disconnection_reason: "agent_hangup" }));
-    const again = await request(t.app).post("/api/customers/cus_05/call");
+    const again = await request(t.app).post("/api/customers/cus_05/call").send({});
     expect(again.status).toBe(409);
     expect(again.body.code).toBe("DO_NOT_CALL");
     expect((await request(t.app).get("/api/state")).body.compliance[0]).toMatchObject({ customer_id: "cus_05", block_code: "DO_NOT_CALL" });
@@ -189,7 +216,7 @@ describe("end-to-end recovery", () => {
 describe("dialer", () => {
   it("blocks the DNC customer before anything is dialed", async () => {
     const t = makeApp();
-    const res = await request(t.app).post("/api/customers/cus_09/call");
+    const res = await request(t.app).post("/api/customers/cus_09/call").send({});
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("DO_NOT_CALL");
     expect(t.providerCalls).toHaveLength(0);
@@ -198,13 +225,13 @@ describe("dialer", () => {
   it("allows only one live call to the demo phone at a time", async () => {
     const t = makeApp();
     await placeCall(t, "cus_01");
-    const second = await request(t.app).post("/api/customers/cus_02/call");
+    const second = await request(t.app).post("/api/customers/cus_02/call").send({});
     expect(second.body.code).toBe("CALL_IN_PROGRESS");
   });
 
   it("refuses to dial outside calling hours", async () => {
     const t = makeApp({ at: new Date("2026-10-02T16:00:00Z") });
-    const res = await request(t.app).post("/api/customers/cus_01/call");
+    const res = await request(t.app).post("/api/customers/cus_01/call").send({});
     expect(res.body.code).toBe("OUTSIDE_CALLING_HOURS");
     expect(t.providerCalls).toHaveLength(0);
   });

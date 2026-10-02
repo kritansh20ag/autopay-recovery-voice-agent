@@ -11,7 +11,7 @@ if (!repo.listCustomers().length) seedDatabase(repo);
 
 const provider = config.retellApiKey ? retellVoiceProvider(createRetell(config.retellApiKey)) : undefined;
 
-const { app } = createApp({
+const { app, publicApp } = createApp({
   repo,
   config,
   provider,
@@ -23,8 +23,13 @@ const { app } = createApp({
   webDist: path.resolve("web/dist"),
 });
 
-app.listen(config.port, () => {
+publicApp.listen(config.publicPort, "127.0.0.1", () => {
+  console.log(`[public] http://127.0.0.1:${config.publicPort}  (Retell webhooks, tools and /pay only; point the tunnel here)`);
+});
+
+app.listen(config.port, "127.0.0.1", () => {
   const warn = [
+    !config.verifySignatures && "VERIFY_RETELL_SIGNATURES=false: anyone with the tunnel URL can invoke tools",
     !config.retellApiKey && "RETELL_API_KEY not set (calls disabled)",
     !config.demoPhoneNumber && "DEMO_PHONE_NUMBER not set (dialer blocks everything)",
     !readProvisionedState().agentId && "agent not provisioned (run `npm run provision`)",

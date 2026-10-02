@@ -20,6 +20,7 @@ const EnvSchema = z.object({
   RETELL_VOICE_ID: optionalString,
   RETELL_AREA_CODE: z.preprocess(blank, z.coerce.number().int().optional()),
   PORT: z.preprocess(blank, z.coerce.number().int().default(3000)),
+  PUBLIC_PORT: z.preprocess(blank, z.coerce.number().int().default(3001)),
   PUBLIC_BASE_URL: z.preprocess(blank, z.url().optional()),
   CALLING_WINDOW_START_HOUR: z.preprocess(blank, z.coerce.number().int().min(0).max(23).default(8)),
   CALLING_WINDOW_END_HOUR: z.preprocess(blank, z.coerce.number().int().min(1).max(24).default(19)),
@@ -40,6 +41,7 @@ export interface AppConfig {
   voiceId?: string;
   areaCode?: number;
   port: number;
+  publicPort: number;
   publicBaseUrl?: string;
   callingWindow: { startHour: number; endHour: number };
   dbPath: string;
@@ -65,6 +67,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     voiceId: e.RETELL_VOICE_ID,
     areaCode: e.RETELL_AREA_CODE,
     port: e.PORT,
+    publicPort: e.PUBLIC_PORT,
     publicBaseUrl: e.PUBLIC_BASE_URL?.replace(/\/$/, ""),
     callingWindow: { startHour: e.CALLING_WINDOW_START_HOUR, endHour: e.CALLING_WINDOW_END_HOUR },
     dbPath: e.DB_PATH,

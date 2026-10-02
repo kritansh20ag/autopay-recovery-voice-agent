@@ -59,7 +59,7 @@ export function makeApp(opts: { at?: Date; env?: Record<string, string> } = {}) 
   const events: AppEvent[] = [];
   bus.subscribe((e) => events.push(e));
   const { provider, calls } = fakeProvider();
-  const { app, dialer } = createApp({
+  const { app, publicApp, dialer } = createApp({
     repo,
     config,
     bus,
@@ -67,7 +67,7 @@ export function makeApp(opts: { at?: Date; env?: Record<string, string> } = {}) 
     binding: () => ({ agentId: "agent_test", agentVersion: 3, fromNumber: "+14155550100" }),
     publicBaseUrl: () => "https://demo.example.test",
   });
-  return { app, repo, clock, config, bus, events, dialer, providerCalls: calls };
+  return { app, publicApp, repo, clock, config, bus, events, dialer, providerCalls: calls };
 }
 
 export async function signed(body: unknown): Promise<{ raw: string; signature: string }> {

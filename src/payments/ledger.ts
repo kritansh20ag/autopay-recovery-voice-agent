@@ -74,13 +74,13 @@ export function completePaymentLink(repo: Repo, token: string, method: LinkPayme
     const link = repo.getLink(token);
     if (!link) return { ok: false, error: "NOT_FOUND" } as const;
     if (link.status === "paid") return { ok: false, error: "ALREADY_PAID" } as const;
+    const invoice = repo.getInvoice(link.invoice_id)!;
+    if (invoice.status === "under_review" || invoice.status === "disputed") return { ok: false, error: "PAUSED" } as const;
     if (link.status === "expired") return { ok: false, error: "EXPIRED" } as const;
     if (Date.parse(link.expires_at) < repo.nowDate().getTime()) {
       repo.updateLink(token, { status: "expired" });
       return { ok: false, error: "EXPIRED" } as const;
     }
-    const invoice = repo.getInvoice(link.invoice_id)!;
-    if (invoice.status === "under_review" || invoice.status === "disputed") return { ok: false, error: "PAUSED" } as const;
     if (!isCollectable(invoice)) return { ok: false, error: "NOTHING_OWED" } as const;
     const payment = applyPayment(repo, invoice, link.amount);
     repo.updateLink(token, { status: "paid", paid_at: repo.now() });

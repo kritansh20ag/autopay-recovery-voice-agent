@@ -42,6 +42,7 @@ ${body}
 export function renderPayPage(input: { company: string; customer: CustomerRow; invoice: InvoiceRow; link: PaymentLinkRow; error?: string }): string {
   const { customer, invoice, link } = input;
   const amount = Math.min(link.amount, balanceDue(invoice));
+  const upiFirst = link.purpose === "new_mandate" || customer.payment_method_type === "upi";
   return shell(
     input.company,
     `<div class="card">
@@ -53,8 +54,8 @@ export function renderPayPage(input: { company: string; customer: CustomerRow; i
 <div class="row"><span>Link expires</span><span>${esc(new Date(link.expires_at).toLocaleString("en-IN", { timeZone: customer.timezone }))}</span></div>
 <form method="post">
 <div class="tabs">
-<label><input type="radio" name="method" value="card" checked> Card</label>
-<label><input type="radio" name="method" value="upi"> UPI</label>
+<label><input type="radio" name="method" value="card"${upiFirst ? "" : " checked"}> Card</label>
+<label><input type="radio" name="method" value="upi"${upiFirst ? " checked" : ""}> UPI</label>
 </div>
 <label for="card">Test card number (card only)</label>
 <input id="card" name="card_number" inputmode="numeric" autocomplete="off" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242">

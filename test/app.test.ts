@@ -271,6 +271,7 @@ describe("end-to-end recovery", () => {
     expect(t.repo.getLink(link.token)!.status).toBe("expired");
     const paid = await request(t.app).post(`/pay/${link.token}`).type("form").send({ method: "card", card_number: "4242424242424242" });
     expect(paid.status).toBe(409);
+    expect(paid.text).toContain("Payment paused");
     expect(t.repo.invoiceForCustomer("cus_04")).toMatchObject({ status: "disputed", paid_amount: 0 });
   });
 
@@ -281,10 +282,35 @@ describe("end-to-end recovery", () => {
     await tool(t, callId, "cus_06", "send_payment_link", { purpose: "update_method", amount: null });
     const link = t.repo.listLinks()[0]!;
     t.clock.advance(25 * 3_600_000);
+    const page = await request(t.app).get(`/pay/${link.token}`);
+    expect(page.status).toBe(410);
+    expect(page.text).toContain("Link expired");
+    expect(page.text).not.toContain("<form");
+    const wrongCard = await request(t.app).post(`/pay/${link.token}`).type("form").send({ method: "card", card_number: "1" });
+    expect(wrongCard.status).toBe(410);
     const paid = await request(t.app).post(`/pay/${link.token}`).type("form").send({ method: "upi" });
-    expect(paid.status).toBe(409);
-    expect(paid.text).toContain("Link expired");
+    expect(paid.status).toBe(410);
     expect(t.repo.invoiceForCustomer("cus_06")!.status).toBe("failed");
+  });
+
+  it("checkout page states: unknown link, second link after the balance is settled, UPI default for mandates", async () => {
+    const t = makeApp();
+    const unknown = await request(t.app).get("/pay/nope");
+    expect(unknown.status).toBe(404);
+    expect(unknown.text).toContain("Link not found");
+
+    const callId = await placeCall(t, "cus_05");
+    await tool(t, callId, "cus_05", "verify_identity", verifyArgs(t, "cus_05"));
+    await tool(t, callId, "cus_05", "send_payment_link", { purpose: "new_mandate", amount: null });
+    await tool(t, callId, "cus_05", "send_payment_link", { purpose: "pay_full", amount: null });
+    const [second, first] = t.repo.listLinks();
+    const mandatePage = await request(t.app).get(`/pay/${first!.token}`);
+    expect(mandatePage.text).toMatch(/value="upi" checked/);
+    await request(t.app).post(`/pay/${first!.token}`).type("form").send({ method: "upi" });
+    const settled = await request(t.app).get(`/pay/${second!.token}`);
+    expect(settled.status).toBe(409);
+    expect(settled.text).toContain("Nothing to pay");
+    expect(settled.text).not.toContain("Pay 0");
   });
 
   it("stop calling: marks DNC without verification and the dialer refuses afterwards", async () => {

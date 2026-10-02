@@ -10,7 +10,7 @@ import { refreshDisposition } from "./calls/disposition.js";
 import { buildCallDetail, buildState } from "./api/state.js";
 import { createNotifier, type Notifier } from "./notify/outbox.js";
 import { completePaymentLink } from "./payments/ledger.js";
-import { balanceDue, spokenRupees } from "./policy/offers.js";
+import { balanceDue, isCollectable, spokenRupees } from "./policy/offers.js";
 import { renderPayPage, renderPayResult } from "./pay/page.js";
 import type { VoiceProvider } from "./retell/client.js";
 import { executeTool } from "./retell/functions.js";
@@ -30,6 +30,16 @@ export interface AppDeps {
 }
 
 const TEST_CARD = "4242424242424242";
+
+type PayProblem = "NOT_FOUND" | "ALREADY_PAID" | "EXPIRED" | "PAUSED" | "NOTHING_OWED";
+
+const PAY_COPY: Record<PayProblem, { title: string; detail: string; ok: boolean; status: number }> = {
+  NOT_FOUND: { title: "Link not found", detail: "This payment link is invalid.", ok: false, status: 404 },
+  ALREADY_PAID: { title: "Already paid", detail: "This link has already been used. Thank you.", ok: true, status: 409 },
+  EXPIRED: { title: "Link expired", detail: "This link is no longer valid. Ask us for a new one.", ok: false, status: 410 },
+  PAUSED: { title: "Payment paused", detail: "This account is under review. No payment is needed right now.", ok: false, status: 409 },
+  NOTHING_OWED: { title: "Nothing to pay", detail: "This balance has already been settled. Thank you.", ok: true, status: 409 },
+};
 
 const requireJsonPosts: RequestHandler = (req, res, next) => {
   if (req.method !== "GET" && !req.is("application/json")) {
@@ -138,55 +148,56 @@ export function createApp(deps: AppDeps) {
 
   app.get("/api/events", bus.sseHandler());
 
-  pub.get("/pay/:token", (req, res) => {
-    const link = repo.getLink(req.params.token);
-    if (!link) {
-      res.status(404).type("html").send(renderPayResult({ company: config.companyName, title: "Link not found", detail: "This payment link is invalid.", ok: false }));
-      return;
-    }
-    if (link.status !== "sent") {
-      const paid = link.status === "paid";
-      res.type("html").send(
-        renderPayResult({
-          company: config.companyName,
-          title: paid ? "Already paid" : "Link expired",
-          detail: paid ? "This link has already been used. Thank you." : "Ask for a new link.",
-          ok: paid,
-        }),
-      );
-      return;
-    }
-    const customer = repo.getCustomer(link.customer_id)!;
+  const payProblem = (token: string): PayProblem | undefined => {
+    const link = repo.getLink(token);
+    if (!link) return "NOT_FOUND";
+    if (link.status === "paid") return "ALREADY_PAID";
     const invoice = repo.getInvoice(link.invoice_id)!;
-    res.type("html").send(renderPayPage({ company: config.companyName, customer, invoice, link }));
+    if (invoice.status === "under_review" || invoice.status === "disputed") return "PAUSED";
+    if (link.status === "expired" || Date.parse(link.expires_at) < repo.nowDate().getTime()) return "EXPIRED";
+    if (!isCollectable(invoice)) return "NOTHING_OWED";
+    return undefined;
+  };
+
+  const sendProblem = (res: Response, problem: PayProblem) => {
+    const c = PAY_COPY[problem];
+    res.status(c.status).type("html").send(renderPayResult({ company: config.companyName, title: c.title, detail: c.detail, ok: c.ok }));
+  };
+
+  pub.get("/pay/:token", (req, res) => {
+    const problem = payProblem(req.params.token);
+    if (problem) {
+      sendProblem(res, problem);
+      return;
+    }
+    const link = repo.getLink(req.params.token)!;
+    res.type("html").send(renderPayPage({ company: config.companyName, customer: repo.getCustomer(link.customer_id)!, invoice: repo.getInvoice(link.invoice_id)!, link }));
   });
 
   pub.post("/pay/:token", express.urlencoded({ extended: false, limit: "10kb" }), (req, res) => {
     const token = req.params.token;
-    const link = repo.getLink(token);
+    const problem = payProblem(token);
+    if (problem) {
+      sendProblem(res, problem);
+      return;
+    }
+    const link = repo.getLink(token)!;
     const method = req.body?.method === "upi" ? "upi" : "card";
-    if (link && link.status === "sent" && method === "card") {
-      const digits = String(req.body?.card_number ?? "").replace(/\D/g, "");
-      if (digits !== TEST_CARD) {
-        const customer = repo.getCustomer(link.customer_id)!;
-        const invoice = repo.getInvoice(link.invoice_id)!;
-        res.status(422).type("html").send(
-          renderPayPage({ company: config.companyName, customer, invoice, link, error: "Demo checkout: only the test card 4242 4242 4242 4242 is accepted." }),
-        );
-        return;
-      }
+    if (method === "card" && String(req.body?.card_number ?? "").replace(/\D/g, "") !== TEST_CARD) {
+      res.status(422).type("html").send(
+        renderPayPage({
+          company: config.companyName,
+          customer: repo.getCustomer(link.customer_id)!,
+          invoice: repo.getInvoice(link.invoice_id)!,
+          link,
+          error: "Demo checkout: only the test card 4242 4242 4242 4242 is accepted.",
+        }),
+      );
+      return;
     }
     const result = completePaymentLink(repo, token, method);
     if (!result.ok) {
-      const copy: Record<typeof result.error, [string, string]> = {
-        NOT_FOUND: ["Link not found", "This payment link is invalid."],
-        ALREADY_PAID: ["Already paid", "This link has already been used. Thank you."],
-        EXPIRED: ["Link expired", "Ask for a new link."],
-        NOTHING_OWED: ["Nothing to pay", "This balance has already been settled."],
-        PAUSED: ["Payment paused", "This account is under review. No payment is needed right now."],
-      };
-      const [title, detail] = copy[result.error];
-      res.status(result.error === "NOT_FOUND" ? 404 : 409).type("html").send(renderPayResult({ company: config.companyName, title, detail, ok: result.error !== "EXPIRED" }));
+      sendProblem(res, result.error);
       return;
     }
     if (result.link.call_id) refreshDisposition(repo, result.link.call_id);

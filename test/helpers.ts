@@ -74,7 +74,7 @@ export function makeApp(
     config,
     bus,
     provider,
-    binding: () => ({ agentId: "agent_test", agentVersion: 3, fromNumber: "+14155550100" }),
+    binding: () => ({ agentId: "agent_test", agentVersion: 3, fromNumber: "+14155550100", publicBaseUrl: "https://demo.example.test" }),
     publicBaseUrl: () => "https://demo.example.test",
     dialerTimings: { interCallPauseMs: 0, callWaitMs: 2000 },
   });

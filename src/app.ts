@@ -90,7 +90,9 @@ export function createApp(deps: AppDeps) {
 
   app.get("/api/state", (_req, res) => {
     void dialer.reconcileActiveCall(15_000);
-    res.json(buildState(repo, config, dialer, { provisioned: !!deps.binding()?.fromNumber, publicBaseUrl: deps.publicBaseUrl() }));
+    const binding = deps.binding();
+    const publicBaseUrl = deps.publicBaseUrl();
+    res.json(buildState(repo, config, dialer, { provisioned: !!binding?.fromNumber && binding.publicBaseUrl === publicBaseUrl, publicBaseUrl }));
   });
 
   app.get("/api/calls/:id", (req, res) => {

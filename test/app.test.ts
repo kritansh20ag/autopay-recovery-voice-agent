@@ -154,6 +154,7 @@ describe("end-to-end recovery", () => {
     expect(dup.headers["x-webhook-outcome"]).toBe("duplicate");
 
     const state = (await request(t.app).get("/api/state")).body;
+    expect(state.config.provisioned).toBe(true);
     expect(state.kpis).toMatchObject({ recovered: 2599, customersRecovered: 1, linksSent: 1, linksPaid: 1, rightParty: 1 });
     expect(state.customers.find((c: any) => c.id === "cus_02")).toMatchObject({ status: "recovered", eligibility: { allowed: false, code: "NOTHING_OWED" } });
   });

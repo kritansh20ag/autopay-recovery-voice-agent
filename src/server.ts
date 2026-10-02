@@ -17,7 +17,7 @@ const { app, publicApp } = createApp({
   provider,
   binding: () => {
     const s = readProvisionedState();
-    return s.agentId ? { agentId: s.agentId, agentVersion: s.agentVersion, fromNumber: s.fromNumber } : undefined;
+    return s.agentId ? { agentId: s.agentId, agentVersion: s.agentVersion, fromNumber: s.fromNumber, publicBaseUrl: s.publicBaseUrl } : undefined;
   },
   publicBaseUrl: () => resolvePublicBaseUrl(config),
   webDist: path.resolve("web/dist"),
@@ -32,7 +32,10 @@ app.listen(config.port, "127.0.0.1", () => {
     !config.verifySignatures && "VERIFY_RETELL_SIGNATURES=false: anyone with the tunnel URL can invoke tools",
     !config.retellApiKey && "RETELL_API_KEY not set (calls disabled)",
     !config.demoPhoneNumber && "DEMO_PHONE_NUMBER not set (dialer blocks everything)",
-    !readProvisionedState().agentId && "agent not provisioned (run `npm run provision`)",
+    !readProvisionedState().agentId && "agent not provisioned (run `npm run live`)",
+    readProvisionedState().agentId &&
+      readProvisionedState().publicBaseUrl !== resolvePublicBaseUrl(config) &&
+      `agent was provisioned for ${readProvisionedState().publicBaseUrl}, not ${resolvePublicBaseUrl(config)}; tools and webhooks will not reach this server`,
   ].filter(Boolean);
   console.log(`[api] http://localhost:${config.port}  public: ${resolvePublicBaseUrl(config)}`);
   for (const w of warn) console.log(`[api] warning: ${w}`);

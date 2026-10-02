@@ -11,6 +11,7 @@ export interface AgentBinding {
   agentId: string;
   agentVersion?: number;
   fromNumber?: string;
+  publicBaseUrl?: string;
 }
 
 export interface DialerDeps {

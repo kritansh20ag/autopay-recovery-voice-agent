@@ -64,6 +64,8 @@ export function evaluateDial(ctx: DialContext): DialDecision {
 }
 
 export function evaluateWebCall(customer: CustomerRow, invoice: InvoiceRow | undefined): DialDecision {
+  if (!customer.consent) return block("NO_CONSENT", "No valid consent to contact this customer.");
+  if (customer.dnc) return block("DO_NOT_CALL", "Customer is on the do-not-call list.");
   if (customer.dispute_flag || invoice?.status === "disputed") return block("DISPUTED", "Account has an open dispute; collection calls are paused.");
   if (!isCollectable(invoice)) return block("NOTHING_OWED", "No collectable balance (paid, under review, or no invoice).");
   return { allowed: true };

@@ -305,6 +305,14 @@ describe("dialer", () => {
     expect(t.providerCalls).toHaveLength(0);
   });
 
+  it("applies do-not-call to browser calls too", async () => {
+    const t = makeApp();
+    const res = await request(t.app).post("/api/customers/cus_09/web-call").send({});
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("DO_NOT_CALL");
+    expect((await request(t.app).post("/api/customers/cus_01/web-call").send({})).status).toBe(201);
+  });
+
   it("allows only one live call to the demo phone at a time", async () => {
     const t = makeApp();
     await placeCall(t, "cus_01");

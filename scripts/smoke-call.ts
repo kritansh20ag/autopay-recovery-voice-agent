@@ -31,7 +31,7 @@ async function main() {
       max_call_duration_ms: 60_000,
     });
     smokeAgentId = agent.agent_id;
-    writeProvisionedState({ smokeAgentId, smokeLlmId: llm.llm_id });
+    writeProvisionedState({ smokeAgentId });
   }
 
   console.log(`Calling ${to} from ${fromNumber}...`);

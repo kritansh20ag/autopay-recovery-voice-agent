@@ -1,11 +1,10 @@
 import type { CustomerRow, InvoiceRow } from "../db/db.js";
 import { isCollectable } from "./offers.js";
-import { localParts } from "./time.js";
+import { DAY_MS, localParts } from "./time.js";
 
 export const MAX_ATTEMPTS_7D = 7;
 export const QUIET_PERIOD_DAYS = 7;
 export const MAX_CALL_MINUTES = 5;
-const DAY_MS = 86_400_000;
 
 export type BlockCode =
   | "NO_DEMO_NUMBER"

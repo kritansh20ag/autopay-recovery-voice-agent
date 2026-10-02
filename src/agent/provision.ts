@@ -126,7 +126,6 @@ export async function provision(client: Retell, config: AppConfig, publicBaseUrl
     fromNumber,
     voiceId,
     publicBaseUrl,
-    provisionedAt: new Date().toISOString(),
   });
 }
 

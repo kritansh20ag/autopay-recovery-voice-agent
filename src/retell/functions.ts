@@ -18,7 +18,7 @@ import {
   spokenRupees,
   validatePromiseDate,
 } from "../policy/offers.js";
-import { addDays, daysBetween, localDate, localParts, withinWindow, zonedLocalToUtc } from "../policy/time.js";
+import { addDays, DAY_MS, daysBetween, localDate, localParts, withinWindow, zonedLocalToUtc } from "../policy/time.js";
 
 export interface ToolDeps {
   repo: Repo;
@@ -273,7 +273,7 @@ const handlers: Handlers = {
     if (!at) return fail("INVALID_TIME", "Use the format YYYY-MM-DDTHH:mm in the customer's local time.");
     const now = ctx.repo.nowDate();
     if (at.getTime() <= now.getTime()) return fail("TIME_IN_PAST", "That time has already passed. Ask for a later time.");
-    if (at.getTime() - now.getTime() > POLICY.callbackMaxDays * 86_400_000) return fail("TOO_FAR", `Callbacks must be within ${POLICY.callbackMaxDays} days.`);
+    if (at.getTime() - now.getTime() > POLICY.callbackMaxDays * DAY_MS) return fail("TOO_FAR", `Callbacks must be within ${POLICY.callbackMaxDays} days.`);
     const local = localParts(at, ctx.customer.timezone);
     if (!withinWindow(local.hour, ctx.config.callingWindow)) {
       return fail(

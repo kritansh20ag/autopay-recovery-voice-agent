@@ -3,7 +3,7 @@ import type { AppConfig } from "../config.js";
 import type { CustomerRow, Repo } from "../db/db.js";
 import type { EventBus } from "../events/bus.js";
 import { evaluateDial, evaluateWebCall, type DialDecision } from "../policy/dialPolicy.js";
-import { localDate } from "../policy/time.js";
+import { DAY_MS, localDate } from "../policy/time.js";
 import { describeProviderError, type VoiceProvider, type WebCallSession } from "../retell/client.js";
 import { handleRetellWebhook } from "../retell/webhooks.js";
 
@@ -43,7 +43,6 @@ export interface CampaignState {
   results: Array<{ customerId: string; outcome: string; detail?: string }>;
 }
 
-const DAY_MS = 86_400_000;
 
 export class Dialer {
   private campaign: CampaignState = { running: false, results: [] };

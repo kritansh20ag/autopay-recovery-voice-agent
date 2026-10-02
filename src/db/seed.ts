@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { loadConfig } from "../config.js";
 import { CUSTOMERS } from "./customers.js";
 import { openDb, Repo } from "./db.js";
+import { DAY_MS, localDate } from "../policy/time.js";
 
 const TABLES = [
   "webhook_receipts",
@@ -17,8 +18,6 @@ const TABLES = [
   "invoices",
   "customers",
 ];
-
-const DAY_MS = 86_400_000;
 
 export function seedDatabase(repo: Repo): void {
   const now = repo.nowDate().getTime();
@@ -62,7 +61,7 @@ export function seedDatabase(repo: Repo): void {
         customer_id: c.id,
         amount: c.invoice.amount,
         late_fee: c.invoice.lateFee,
-        due_date: due.toISOString().slice(0, 10),
+        due_date: localDate(due, c.timezone),
         failed_at: due.toISOString(),
         failure_code: c.invoice.failureCode,
         retry_outcome: c.invoice.retryOutcome,

@@ -1,5 +1,6 @@
 import type { AppConfig } from "../config.js";
 import type { CustomerRow, LinkPurpose, Repo } from "../db/db.js";
+import { maskPhone } from "../format.js";
 import { POLICY, spokenRupees } from "../policy/offers.js";
 
 export type Channel = "sms" | "email";
@@ -14,11 +15,6 @@ const PURPOSE_COPY: Record<LinkPurpose, string> = {
   update_method: "update your payment method and clear the balance",
   new_mandate: "set up a new UPI AutoPay mandate and clear the balance",
 };
-
-export function maskPhone(e164: string | undefined): string {
-  if (!e164) return "your registered mobile";
-  return `${e164.slice(0, 3)} ••••• •${e164.slice(-4)}`;
-}
 
 export function createNotifier(repo: Repo, config: AppConfig, fetchImpl: typeof fetch = fetch): Notifier {
   return {

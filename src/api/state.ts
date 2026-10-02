@@ -1,7 +1,7 @@
 import type { AppConfig } from "../config.js";
 import type { CallRow, CustomerRow, InvoiceRow, PaymentLinkRow, Repo } from "../db/db.js";
 import type { Dialer } from "../calls/dialer.js";
-import { maskPhone } from "../notify/outbox.js";
+import { maskPhone } from "../format.js";
 import { balanceDue, CUSTOMER_SAFE_REASON, totalDue } from "../policy/offers.js";
 
 export type CustomerStatus =

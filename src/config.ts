@@ -88,9 +88,7 @@ export interface ProvisionedState {
   fromNumber?: string;
   voiceId?: string;
   smokeAgentId?: string;
-  smokeLlmId?: string;
   publicBaseUrl?: string;
-  provisionedAt?: string;
 }
 
 const STATE_FILE = path.resolve(".retell.json");

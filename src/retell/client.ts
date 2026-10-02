@@ -37,14 +37,17 @@ export function createRetell(apiKey: string): Retell {
 export function retellVoiceProvider(client: Retell): VoiceProvider {
   return {
     async createPhoneCall(req) {
-      const call = await client.call.createPhoneCall({
-        from_number: req.fromNumber,
-        to_number: req.toNumber,
-        override_agent_id: req.agentId,
-        ...(req.agentVersion !== undefined ? { override_agent_version: req.agentVersion } : {}),
-        retell_llm_dynamic_variables: req.dynamicVariables,
-        metadata: req.metadata,
-      });
+      const call = await client.call.createPhoneCall(
+        {
+          from_number: req.fromNumber,
+          to_number: req.toNumber,
+          override_agent_id: req.agentId,
+          ...(req.agentVersion !== undefined ? { override_agent_version: req.agentVersion } : {}),
+          retell_llm_dynamic_variables: req.dynamicVariables,
+          metadata: req.metadata,
+        },
+        { maxRetries: 0 },
+      );
       return { callId: call.call_id };
     },
     async createWebCall(req) {

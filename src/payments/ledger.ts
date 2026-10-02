@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { CustomerRow, InvoiceRow, LinkPurpose, PaymentLinkRow, Repo } from "../db/db.js";
-import { balanceDue, POLICY, retryAllowed } from "../policy/offers.js";
+import { balanceDue, isCollectable, POLICY, retryAllowed } from "../policy/offers.js";
 
 export interface PaymentResult {
   invoice: InvoiceRow;
@@ -61,7 +61,7 @@ export type LinkPaymentMethod = "card" | "upi";
 
 export type CompleteLinkResult =
   | { ok: true; link: PaymentLinkRow; payment: PaymentResult }
-  | { ok: false; error: "NOT_FOUND" | "ALREADY_PAID" | "EXPIRED" | "NOTHING_OWED" };
+  | { ok: false; error: "NOT_FOUND" | "ALREADY_PAID" | "EXPIRED" | "NOTHING_OWED" | "PAUSED" };
 
 const UPDATED_METHOD_LABEL: Record<LinkPaymentMethod, string> = {
   card: "Visa ending 4242 (updated via secure link)",
@@ -73,12 +73,14 @@ export function completePaymentLink(repo: Repo, token: string, method: LinkPayme
     const link = repo.getLink(token);
     if (!link) return { ok: false, error: "NOT_FOUND" } as const;
     if (link.status === "paid") return { ok: false, error: "ALREADY_PAID" } as const;
+    if (link.status === "expired") return { ok: false, error: "EXPIRED" } as const;
     if (Date.parse(link.expires_at) < repo.nowDate().getTime()) {
       repo.updateLink(token, { status: "expired" });
       return { ok: false, error: "EXPIRED" } as const;
     }
     const invoice = repo.getInvoice(link.invoice_id)!;
-    if (balanceDue(invoice) <= 0) return { ok: false, error: "NOTHING_OWED" } as const;
+    if (invoice.status === "under_review" || invoice.status === "disputed") return { ok: false, error: "PAUSED" } as const;
+    if (!isCollectable(invoice)) return { ok: false, error: "NOTHING_OWED" } as const;
     const payment = applyPayment(repo, invoice, link.amount);
     repo.updateLink(token, { status: "paid", paid_at: repo.now() });
     if (link.purpose === "update_method" || link.purpose === "new_mandate") {

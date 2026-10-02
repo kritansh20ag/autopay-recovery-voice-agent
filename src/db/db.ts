@@ -287,6 +287,10 @@ export class Repo {
     update(this.db, "payment_links", "token", token, patch);
   }
 
+  expireOpenLinks(invoiceId: string): number {
+    return this.db.prepare("UPDATE payment_links SET status = 'expired' WHERE invoice_id = ? AND status = 'sent'").run(invoiceId).changes;
+  }
+
   listLinks(): PaymentLinkRow[] {
     return this.db.prepare("SELECT * FROM payment_links ORDER BY created_at DESC").all() as PaymentLinkRow[];
   }

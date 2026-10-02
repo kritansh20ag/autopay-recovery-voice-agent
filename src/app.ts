@@ -175,6 +175,7 @@ export function createApp(deps: AppDeps) {
         ALREADY_PAID: ["Already paid", "This link has already been used. Thank you."],
         EXPIRED: ["Link expired", "Ask for a new link."],
         NOTHING_OWED: ["Nothing to pay", "This balance has already been settled."],
+        PAUSED: ["Payment paused", "This account is under review. No payment is needed right now."],
       };
       const [title, detail] = copy[result.error];
       res.status(result.error === "NOT_FOUND" ? 404 : 409).type("html").send(renderPayResult({ company: config.companyName, title, detail, ok: result.error !== "EXPIRED" }));

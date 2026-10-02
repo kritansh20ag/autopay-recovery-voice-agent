@@ -219,6 +219,7 @@ const handlers: Handlers = {
   report_already_paid(ctx, args) {
     if (ctx.invoice.status === "paid") return { ok: true, found_matching_payment: true, detail: "The balance shows as paid.", instruction: "Confirm nothing is owed and close." };
     ctx.repo.updateInvoice(ctx.invoice.id, { status: "under_review" });
+    ctx.repo.expireOpenLinks(ctx.invoice.id);
     const ticket = ctx.repo.insertEscalation({
       customer_id: ctx.customer.id,
       call_id: ctx.call.id,
@@ -244,6 +245,7 @@ const handlers: Handlers = {
 
   log_dispute(ctx, args) {
     ctx.repo.updateInvoice(ctx.invoice.id, { status: "disputed" });
+    ctx.repo.expireOpenLinks(ctx.invoice.id);
     ctx.repo.updateCustomer(ctx.customer.id, { dispute_flag: 1 });
     const ticket = ctx.repo.insertEscalation({ customer_id: ctx.customer.id, call_id: ctx.call.id, kind: "dispute", reason: args.reason });
     return { ok: true, ticket_id: ticket, instruction: "Confirm the dispute is logged, collection is paused, and a specialist will respond in writing within 5 business days." };

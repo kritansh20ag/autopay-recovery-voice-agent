@@ -211,6 +211,32 @@ describe("end-to-end recovery", () => {
     expect(t.repo.getCall(callId)!.disposition).toBe("already_paid_review");
   });
 
+  it("a dispute expires earlier links and the checkout refuses them", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_04");
+    await tool(t, callId, "cus_04", "verify_identity", verifyArgs(t, "cus_04"));
+    await tool(t, callId, "cus_04", "send_payment_link", { purpose: "update_method", amount: null });
+    const link = t.repo.listLinks()[0]!;
+    expect(await tool(t, callId, "cus_04", "log_dispute", { reason: "Never ordered the upgrade" })).toMatchObject({ ok: true });
+    expect(t.repo.getLink(link.token)!.status).toBe("expired");
+    const paid = await request(t.app).post(`/pay/${link.token}`).type("form").send({ method: "card", card_number: "4242424242424242" });
+    expect(paid.status).toBe(409);
+    expect(t.repo.invoiceForCustomer("cus_04")).toMatchObject({ status: "disputed", paid_amount: 0 });
+  });
+
+  it("rejects a link that expired after 24 hours", async () => {
+    const t = makeApp();
+    const callId = await placeCall(t, "cus_06");
+    await tool(t, callId, "cus_06", "verify_identity", verifyArgs(t, "cus_06"));
+    await tool(t, callId, "cus_06", "send_payment_link", { purpose: "update_method", amount: null });
+    const link = t.repo.listLinks()[0]!;
+    t.clock.advance(25 * 3_600_000);
+    const paid = await request(t.app).post(`/pay/${link.token}`).type("form").send({ method: "upi" });
+    expect(paid.status).toBe(409);
+    expect(paid.text).toContain("Link expired");
+    expect(t.repo.invoiceForCustomer("cus_06")!.status).toBe("failed");
+  });
+
   it("stop calling: marks DNC without verification and the dialer refuses afterwards", async () => {
     const t = makeApp();
     const callId = await placeCall(t, "cus_05");

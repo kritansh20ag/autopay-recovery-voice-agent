@@ -71,7 +71,7 @@ describe("end-to-end recovery", () => {
     const t = makeApp();
     const callId = await placeCall(t, "cus_02");
     expect(t.providerCalls[0]).toMatchObject({
-      toNumber: "+919812345678",
+      toNumber: "+910000012345",
       agentId: "agent_test",
       agentVersion: 3,
       metadata: { customerId: "cus_02" },

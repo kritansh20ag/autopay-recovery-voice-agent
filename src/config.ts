@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const optionalString = z.preprocess(blank, z.string().optional());
-const e164 = z.string().regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +919812345678");
+const e164 = z.string().regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +910000012345");
 
 const EnvSchema = z.object({
   RETELL_API_KEY: optionalString,

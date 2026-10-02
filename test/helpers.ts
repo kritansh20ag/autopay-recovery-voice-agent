@@ -8,7 +8,7 @@ import type { Notifier } from "../src/notify/outbox.js";
 import type { VoiceProvider } from "../src/retell/client.js";
 
 export const API_KEY = "key_test_webhook";
-export const DEMO_NUMBER = "+919812345678";
+export const DEMO_NUMBER = "+910000012345";
 export const NOON_IST = new Date("2026-10-02T06:30:00Z");
 
 export function testConfig(overrides: Record<string, string> = {}) {

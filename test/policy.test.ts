@@ -35,7 +35,7 @@ describe("evaluateDial", () => {
   });
 
   it("never dials a number that is not allowlisted", () => {
-    expect(evaluateDial(ctx({ to: "+919999999999" }))).toMatchObject({ allowed: false, code: "NOT_ALLOWLISTED" });
+    expect(evaluateDial(ctx({ to: "+910000099999" }))).toMatchObject({ allowed: false, code: "NOT_ALLOWLISTED" });
     expect(evaluateDial(ctx({ to: undefined }))).toMatchObject({ allowed: false, code: "NO_DEMO_NUMBER" });
   });
 

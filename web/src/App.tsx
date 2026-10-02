@@ -130,7 +130,7 @@ export function App() {
 
       <div className="grid">
         <div className="stack">
-          <section className="panel">
+          <section className="panel slot-table">
             <header>
               <h2>Failed autopays</h2>
               {campaign?.running && (
@@ -152,11 +152,23 @@ export function App() {
           </section>
         </div>
         <div className="stack">
-          <LivePanel live={shownLive} agentTalking={web.agentTalking} onStopWeb={web.stop} onOpen={setOpenCall} />
-          {selectedCustomer && <CustomerPanel c={selectedCustomer} calls={state.calls} onOpen={setOpenCall} />}
-          <Outbox items={state.outbox} />
-          <Commitments state={state} />
-          <Compliance items={state.compliance} />
+          <div className="slot-live">
+            <LivePanel live={shownLive} agentTalking={web.agentTalking} onStopWeb={web.stop} onOpen={setOpenCall} />
+          </div>
+          {selectedCustomer && (
+            <div className="slot-persona">
+              <CustomerPanel c={selectedCustomer} calls={state.calls} onOpen={setOpenCall} />
+            </div>
+          )}
+          <div className="slot-rest">
+            <Outbox items={state.outbox} />
+          </div>
+          <div className="slot-rest">
+            <Commitments state={state} />
+          </div>
+          <div className="slot-rest">
+            <Compliance items={state.compliance} />
+          </div>
         </div>
       </div>
 

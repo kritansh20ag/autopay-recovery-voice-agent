@@ -17,31 +17,31 @@ export function CustomerTable({ customers, selected, busy, webBusy, onSelect, on
         <thead>
           <tr>
             <th>Customer</th>
-            <th className="hide-sm">Failure</th>
+            <th>Failure</th>
             <th className="num">Balance</th>
             <th>Status</th>
-            <th className="hide-sm">Last call</th>
+            <th>Last call</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {customers.map((c) => (
             <tr key={c.id} className={selected === c.id ? "selected" : undefined} onClick={() => onSelect(c.id)}>
-              <td>
+              <td className="c-name">
                 <div className="name">{c.fullName}</div>
                 <div className="sub">
                   {c.planName} · {c.paymentMethod}
                 </div>
               </td>
-              <td className="hide-sm">
+              <td className="c-failure">
                 <div>{label(c.failureCode)}</div>
                 <div className="sub">attempts {c.attempts}</div>
               </td>
-              <td className="num">
+              <td className="num c-balance">
                 {money(c.balance)}
                 {c.lateFee > 0 && <div className="sub">{c.lateFeeWaived ? "fee waived" : `incl. ${money(c.lateFee)} fee`}</div>}
               </td>
-              <td>
+              <td className="c-status">
                 <span className={`pill ${c.status}`}>{label(c.status)}</span>
                 {!c.eligibility.allowed && label(c.eligibility.code).toLowerCase() !== label(c.status) && (
                   <div className="blocked" title={c.eligibility.reason}>
@@ -49,8 +49,8 @@ export function CustomerTable({ customers, selected, busy, webBusy, onSelect, on
                   </div>
                 )}
               </td>
-              <td className="hide-sm sub">{label(c.lastDisposition)}</td>
-              <td onClick={(e) => e.stopPropagation()}>
+              <td className="sub c-last">{c.lastDisposition ? `last call: ${label(c.lastDisposition)}` : "no calls yet"}</td>
+              <td className="c-actions" onClick={(e) => e.stopPropagation()}>
                 <div className="actions">
                   <button
                     className="btn sm primary"

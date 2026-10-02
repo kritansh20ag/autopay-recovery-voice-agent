@@ -17,8 +17,9 @@ function shell(company: string, body: string): string {
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--ink:#14171f;--mute:#5d6472;--line:#e3e6eb;--brand:#0f62fe;--ok:#0e7c4a;--warn:#a15c00;--err:#b42318}
 @media (prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--ink:#e8eaee;--mute:#9aa3b2;--line:#2a303b;--brand:#78a9ff;--ok:#42be65;--warn:#f1c21b;--err:#ff8389}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:440px;margin:0 auto;padding:24px 16px}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{width:100%;max-width:440px;margin:0 auto;padding:24px 16px}
+@media (min-width:720px){main{padding-top:64px}}
 .banner{background:var(--warn);color:#000;font-weight:600;font-size:13px;padding:8px 12px;border-radius:8px;margin-bottom:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
 h1{font-size:20px;margin:0 0 4px}.mute{color:var(--mute);font-size:14px}

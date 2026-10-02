@@ -39,7 +39,7 @@ export const TOOL_SPECS = {
   record_promise_to_pay: {
     gated: true,
     description:
-      "Record the customer's commitment to pay on a specific date (at most 14 days away). Confirm the date out loud first.",
+      "Record the customer's commitment to pay on a specific date (at most [[PROMISE_MAX_DAYS]] days away). Confirm the date out loud first.",
     args: z.object({
       promise_date: ymd,
       amount: rupees.nullish().describe("Null means the full remaining balance"),
@@ -75,7 +75,7 @@ export const TOOL_SPECS = {
   schedule_callback: {
     gated: false,
     description:
-      "Customer asks to be called back later. Allowed between 08:00 and 19:00 their local time, within 7 days. Works before verification too (it reveals nothing).",
+      "Customer asks to be called back later. Allowed between [[WINDOW_START]] and [[WINDOW_END]] their local time, within [[CALLBACK_MAX_DAYS]] days. Works before verification too (it reveals nothing).",
     args: z.object({
       callback_time_local: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).describe("Local time YYYY-MM-DDTHH:mm"),
     }),

@@ -1,9 +1,26 @@
 import { readFileSync } from "node:fs";
 import type Retell from "retell-sdk";
 import type { AppConfig } from "../config.js";
+import { POLICY } from "../policy/offers.js";
 import { TOOL_NAMES, TOOL_SPECS, toolParametersJsonSchema, type ToolName } from "./tools.js";
 
 export const PROMPT = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
+
+const hhmm = (h: number) => `${String(h).padStart(2, "0")}:00`;
+
+export function renderPolicyText(text: string, config: AppConfig): string {
+  const values: Record<string, string> = {
+    WINDOW_START: hhmm(config.callingWindow.startHour),
+    WINDOW_END: hhmm(config.callingWindow.endHour),
+    PROMISE_MAX_DAYS: String(POLICY.promiseMaxDays),
+    CALLBACK_MAX_DAYS: String(POLICY.callbackMaxDays),
+    LINK_TTL_HOURS: String(POLICY.linkTtlHours),
+  };
+  const rendered = text.replace(/\[\[([A-Z_]+)\]\]/g, (m, key: string) => values[key] ?? m);
+  const missing = /\[\[[A-Z_]+\]\]/.exec(rendered);
+  if (missing) throw new Error(`Unknown policy placeholder ${missing[0]}`);
+  return rendered;
+}
 
 export const BEGIN_MESSAGE =
   "Hello, this is {{agent_name}}, an AI assistant calling from {{company_name}}. This call is recorded. Am I speaking with {{customer_full_name}}?";
@@ -21,7 +38,7 @@ export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell
   const tools: NonNullable<Retell.LlmCreateParams["general_tools"]> = TOOL_NAMES.map((name) => ({
     type: "custom" as const,
     name,
-    description: TOOL_SPECS[name].description,
+    description: renderPolicyText(TOOL_SPECS[name].description, config),
     url: `${publicBaseUrl}/retell/functions/${name}`,
     method: "POST" as const,
     parameters: toolParametersJsonSchema(name),
@@ -39,7 +56,7 @@ export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell
     tool_call_strict_mode: true,
     start_speaker: "agent",
     begin_message: BEGIN_MESSAGE,
-    general_prompt: PROMPT,
+    general_prompt: renderPolicyText(PROMPT, config),
     general_tools: tools,
     default_dynamic_variables: {
       agent_name: config.agentName,
@@ -47,6 +64,7 @@ export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell
       customer_full_name: "the account holder",
       customer_first_name: "there",
       today: new Date().toISOString().slice(0, 10),
+      today_weekday: "today",
       customer_timezone: "Asia/Kolkata",
       customer_id: "",
     },

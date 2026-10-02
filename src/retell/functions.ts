@@ -159,7 +159,7 @@ const handlers: Handlers = {
       amount_spoken: spokenRupees(amount),
       valid_for_hours: POLICY.linkTtlHours,
       instruction:
-        "Tell them the secure link was sent by text message, valid for 24 hours, and that they can complete it now while you wait. Never ask them to read out card numbers, CVV, OTP or UPI PIN.",
+        `Tell them the secure link was sent by text message, valid for ${POLICY.linkTtlHours} hours, and that they can complete it now while you wait. Never ask them to read out card numbers, CVV, OTP or UPI PIN.`,
     };
   },
 
@@ -297,7 +297,7 @@ const handlers: Handlers = {
       kind: args.category === "hardship" ? "hardship" : "human",
       reason: `${args.category}: ${args.reason}`,
     });
-    return { ok: true, ticket_id: ticket, instruction: "Tell them a specialist will call back within one business day, between 8 AM and 7 PM." };
+    return { ok: true, ticket_id: ticket, instruction: `Tell them a specialist will call back within one business day, between ${ctx.config.callingWindow.startHour}:00 and ${ctx.config.callingWindow.endHour}:00.` };
   },
 
   report_wrong_party(ctx, args) {

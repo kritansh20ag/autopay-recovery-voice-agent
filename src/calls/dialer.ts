@@ -85,6 +85,7 @@ export class Dialer {
       company_name: config.companyName,
       agent_name: config.agentName,
       today: localDate(repo.nowDate(), customer.timezone),
+      today_weekday: new Intl.DateTimeFormat("en-IN", { weekday: "long", timeZone: customer.timezone }).format(repo.nowDate()),
       customer_timezone: customer.timezone,
     };
   }

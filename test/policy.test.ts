@@ -187,3 +187,17 @@ describe("notifier", () => {
     expect(repo.listOutbox().find((m) => m.channel === "email")).toMatchObject({ delivery: "sent", provider_ref: "em_1" });
   });
 });
+
+describe("agent configuration", () => {
+  it("renders every policy number from config into the prompt and tool descriptions", async () => {
+    const { buildLlmParams } = await import("../src/agent/agentConfig.js");
+    const { testConfig } = await import("./helpers.js");
+    const llm = buildLlmParams(testConfig({ CALLING_WINDOW_START_HOUR: "9", CALLING_WINDOW_END_HOUR: "18" }), "https://x.test");
+    expect(llm.general_prompt).toContain("between 09:00 and 18:00");
+    expect(llm.general_prompt).not.toMatch(/\[\[|08:00|19:00/);
+    const callback = llm.general_tools!.find((t) => t.name === "schedule_callback") as { description: string; url: string };
+    expect(callback.description).toContain("between 09:00 and 18:00");
+    expect(callback.url).toBe("https://x.test/retell/functions/schedule_callback");
+    expect(JSON.stringify(llm.general_tools)).not.toContain("[[");
+  });
+});

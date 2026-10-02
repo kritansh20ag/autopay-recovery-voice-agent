@@ -15,12 +15,12 @@ function shell(company: string, body: string): string {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(company)} · Secure payment</title>
 <style>
-:root{--bg:#f4f5f7;--card:#fff;--ink:#14171f;--mute:#5d6472;--line:#e3e6eb;--brand:#0f62fe;--ok:#0e7c4a;--warn:#a15c00;--err:#b42318}
-@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--ink:#e8eaee;--mute:#9aa3b2;--line:#2a303b;--brand:#78a9ff;--ok:#42be65;--warn:#f1c21b;--err:#ff8389}}
+:root{--bg:#f4f5f7;--card:#fff;--ink:#14171f;--mute:#555b67;--line:#e3e6eb;--brand:#0f62fe;--on-brand:#fff;--ok:#0e7c4a;--banner:#fbe3a8;--on-banner:#3a2700;--err:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--ink:#e8eaee;--mute:#a3abb9;--line:#2a303b;--brand:#78a9ff;--on-brand:#0b1530;--ok:#42be65;--banner:#3d2f0a;--on-banner:#f8dc8a;--err:#ff8389}}
 *{box-sizing:border-box}html,body{margin:0;padding:0}body{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{width:100%;max-width:440px;margin:0 auto;padding:24px 16px}
 @media (min-width:720px){main{padding-top:64px}}
-.banner{background:var(--warn);color:#000;font-weight:600;font-size:13px;padding:8px 12px;border-radius:8px;margin-bottom:16px}
+.banner{background:var(--banner);color:var(--on-banner);font-weight:600;font-size:13px;padding:8px 12px;border-radius:8px;margin-bottom:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
 h1{font-size:20px;margin:0 0 4px}.mute{color:var(--mute);font-size:14px}
 .amount{font-size:34px;font-weight:700;margin:16px 0 4px;font-variant-numeric:tabular-nums}
@@ -29,7 +29,7 @@ label{display:block;font-size:13px;color:var(--mute);margin:16px 0 6px}
 input{width:100%;font-size:17px;padding:12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);letter-spacing:1px}
 .tabs{display:flex;gap:8px;margin-top:16px}.tabs label{flex:1;margin:0;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;color:var(--ink);cursor:pointer}
 .tabs input{display:none}.tabs label:has(input:checked){border-color:var(--brand);outline:2px solid var(--brand)}
-button{width:100%;margin-top:20px;font-size:17px;font-weight:600;padding:14px;border:0;border-radius:12px;background:var(--brand);color:#fff;cursor:pointer}
+button{width:100%;margin-top:20px;font-size:17px;font-weight:600;padding:14px;border:0;border-radius:12px;background:var(--brand);color:var(--on-brand);cursor:pointer}
 .err{color:var(--err);font-size:14px;margin-top:12px}.ok{color:var(--ok)}
 .foot{font-size:12px;color:var(--mute);margin-top:16px;text-align:center}
 </style></head><body><main>

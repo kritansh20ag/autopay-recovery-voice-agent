@@ -165,3 +165,25 @@ describe("provisioning helpers", () => {
     expect(() => outboundCountries(testConfig({ ALLOWED_DIAL_NUMBERS: "+81312345678" }))).toThrow(/Unknown country/);
   });
 });
+
+describe("notifier", () => {
+  it("returns without waiting for the email provider, then records delivery", async () => {
+    const { createNotifier } = await import("../src/notify/outbox.js");
+    const { testConfig } = await import("./helpers.js");
+    const { repo } = makeRepo();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const fetchImpl = (async () => {
+      await gate;
+      return new Response(JSON.stringify({ id: "em_1" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const notifier = createNotifier(repo, testConfig({ RESEND_API_KEY: "re_x", DEMO_EMAIL: "me@example.com" }), fetchImpl);
+    const customer = repo.getCustomer("cus_02")!;
+    const channels = await notifier.sendPaymentLink({ customer, url: "https://x/pay/t", purpose: "pay_full", amount: 10, token: "t" });
+    expect(channels).toEqual(["sms", "email"]);
+    expect(repo.listOutbox().find((m) => m.channel === "email")!.delivery).toBe("queued");
+    release();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(repo.listOutbox().find((m) => m.channel === "email")).toMatchObject({ delivery: "sent", provider_ref: "em_1" });
+  });
+});

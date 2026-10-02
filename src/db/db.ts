@@ -114,7 +114,7 @@ export interface OutboxRow {
   to_address: string;
   body: string;
   link_token: string | null;
-  delivery: "simulated" | "sent" | "failed";
+  delivery: "simulated" | "queued" | "sent" | "failed";
   provider_ref: string | null;
   created_at: string;
 }

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type Retell from "retell-sdk";
 import type { AppConfig } from "../config.js";
-import { TOOL_NAMES, TOOL_SPECS, toolParametersJsonSchema } from "./tools.js";
+import { TOOL_NAMES, TOOL_SPECS, toolParametersJsonSchema, type ToolName } from "./tools.js";
 
 export const PROMPT = readFileSync(new URL("./prompt.md", import.meta.url), "utf8");
 
@@ -12,6 +12,11 @@ export function voicemailText(config: AppConfig): string {
   return `Hello, this is ${config.agentName} from ${config.companyName} with a message for you. We will try you again soon, or you can reach us any time in the ${config.companyName} app. Thank you.`;
 }
 
+const SPEAK_WHILE_RUNNING: Partial<Record<ToolName, string>> = {
+  send_payment_link: "Briefly tell the customer you are sending the secure link to their phone now.",
+  retry_payment: "Briefly tell the customer you are retrying the payment now and it takes a few seconds.",
+};
+
 export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell.LlmCreateParams {
   const tools: NonNullable<Retell.LlmCreateParams["general_tools"]> = TOOL_NAMES.map((name) => ({
     type: "custom" as const,
@@ -20,7 +25,8 @@ export function buildLlmParams(config: AppConfig, publicBaseUrl: string): Retell
     url: `${publicBaseUrl}/retell/functions/${name}`,
     method: "POST" as const,
     parameters: toolParametersJsonSchema(name),
-    speak_during_execution: false,
+    speak_during_execution: !!SPEAK_WHILE_RUNNING[name],
+    ...(SPEAK_WHILE_RUNNING[name] ? { execution_message_description: SPEAK_WHILE_RUNNING[name], execution_message_type: "prompt" as const } : {}),
     speak_after_execution: true,
     timeout_ms: 10_000,
     max_retry: 0,

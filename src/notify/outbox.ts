@@ -42,28 +42,40 @@ export function createNotifier(repo: Repo, config: AppConfig, fetchImpl: typeof 
         to_address: config.resend.to,
         body,
         link_token: token,
-        delivery: "simulated",
+        delivery: "queued",
         provider_ref: null,
       });
-      try {
-        const res = await fetchImpl("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${config.resend.apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from: config.resend.from,
-            to: [config.resend.to],
-            subject: `${config.companyName}: secure payment link for ${customer.full_name}`,
-            text: body,
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-        const json = (await res.json().catch(() => ({}))) as { id?: string };
-        repo.updateOutbox(id, { delivery: res.ok ? "sent" : "failed", provider_ref: json.id ?? `http_${res.status}` });
-        if (res.ok) channels.push("email");
-      } catch (err) {
-        repo.updateOutbox(id, { delivery: "failed", provider_ref: err instanceof Error ? err.name : "error" });
-      }
+      void sendEmail(repo, config.resend, id, customer, config.companyName, body, fetchImpl);
+      channels.push("email");
       return channels;
     },
   };
+}
+
+async function sendEmail(
+  repo: Repo,
+  resend: NonNullable<AppConfig["resend"]>,
+  outboxId: number,
+  customer: CustomerRow,
+  company: string,
+  body: string,
+  fetchImpl: typeof fetch,
+): Promise<void> {
+  try {
+    const res = await fetchImpl("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resend.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: resend.from,
+        to: [resend.to],
+        subject: `${company}: secure payment link for ${customer.full_name}`,
+        text: body,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = (await res.json().catch(() => ({}))) as { id?: string };
+    repo.updateOutbox(outboxId, { delivery: res.ok ? "sent" : "failed", provider_ref: json.id ?? `http_${res.status}` });
+  } catch (err) {
+    repo.updateOutbox(outboxId, { delivery: "failed", provider_ref: err instanceof Error ? err.name : "error" });
+  }
 }
